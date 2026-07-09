@@ -1,0 +1,18 @@
+function Get-MT5ManagerCurrent {
+    <#
+    .SYNOPSIS
+        Get the current session manager
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()][string] $TradePlatform,
+        [Parameter()][Nullable[guid]] $CacheId,
+        [Parameter()][int] $CacheTimeout,
+        [Parameter()][string] $IdempotencyKey
+    )
+    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT5/{tradePlatform}/ManagerCurrent"; TradePlatform = $TradePlatform }
+    if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
+    if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
+    if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
+    Invoke-MyWebApiRequest @reqArgs
+}
