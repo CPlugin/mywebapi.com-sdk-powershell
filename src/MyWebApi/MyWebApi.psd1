@@ -7,7 +7,7 @@
     Copyright         = '(c) 2026 CPlugin. MIT License.'
     Description       = 'PowerShell client for the trading platform management WebAPI (v2): REST + real-time streaming.'
     PowerShellVersion = '7.4'
-    FunctionsToExport = @('Connect-MyWebApi', 'Disconnect-MyWebApi')
+    FunctionsToExport = @('Connect-MyWebApi', 'Disconnect-MyWebApi', 'Get-MyWebApiTradePlatform')
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
