@@ -53,6 +53,10 @@ function Connect-MyWebApi {
         throw 'Provide either -AccessToken, or -ClientId and -ClientSecret for client-credentials.'
     }
 
+    if (-not $AccessToken -and -not $resolvedAuthority) {
+        throw 'Authority is required for client-credentials: pass -Environment, or -Authority with -BaseUrl.'
+    }
+
     $script:MyWebApiContext = @{
         BaseUrl              = $resolvedBase.TrimEnd('/')
         Authority            = if ($resolvedAuthority) { $resolvedAuthority.TrimEnd('/') } else { $null }

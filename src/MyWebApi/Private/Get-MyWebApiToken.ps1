@@ -21,9 +21,9 @@ function Get-MyWebApiToken {
     $disco = Invoke-RestMethod -Method Get -Uri ("{0}/.well-known/openid-configuration" -f $ctx.Authority.TrimEnd('/'))
     $tokenEndpoint = $disco.token_endpoint
 
-    $plainSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
-        [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ctx.ClientSecret))
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ctx.ClientSecret)
     try {
+        $plainSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
         $body = @{
             grant_type    = 'client_credentials'
             client_id     = $ctx.ClientId
@@ -34,7 +34,8 @@ function Get-MyWebApiToken {
             -ContentType 'application/x-www-form-urlencoded'
     }
     finally {
-        # Never let the plaintext secret linger.
+        # Free the unmanaged BSTR buffer (zeroed) and drop the managed plaintext reference.
+        if ($bstr -ne [IntPtr]::Zero) { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
         $plainSecret = $null
     }
 

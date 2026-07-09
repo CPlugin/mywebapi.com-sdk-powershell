@@ -49,6 +49,14 @@ Describe 'Connect-MyWebApi' {
             $script:MyWebApiContext.Authority | Should -Be 'https://auth.cplugin.net'
         }
     }
+
+    It 'throws a clear error when client-credentials are used without an authority' {
+        InModuleScope MyWebApi {
+            $sec = ConvertTo-SecureString 'x' -AsPlainText -Force
+            { Connect-MyWebApi -BaseUrl 'https://api.example' -ClientId 'cid' -ClientSecret $sec } |
+                Should -Throw -ExpectedMessage '*Authority is required*'
+        }
+    }
 }
 
 Describe 'Disconnect-MyWebApi' {
