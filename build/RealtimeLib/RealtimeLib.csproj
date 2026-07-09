@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Target net8.0 (not net9.0): pwsh 7.4.x hosts on the .NET 8 runtime. A SignalR.Client
+         built for net9.0 pulls in System.Runtime 9.0.0.0, which conflicts (CS1705) with the
+         System.Runtime 8.0.0.0 that Add-Type's compiler resolves from the hosting pwsh process.
+         Keeping this lib on net8.0 keeps every transitive reference at the 8.0.0.0 assembly
+         version pwsh actually runs on. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.11" />
+  </ItemGroup>
+</Project>

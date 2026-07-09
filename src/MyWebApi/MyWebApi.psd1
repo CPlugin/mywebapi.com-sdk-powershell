@@ -8,7 +8,11 @@
     Description       = 'PowerShell client for the trading platform management WebAPI (v2): REST + real-time streaming.'
     PowerShellVersion = '7.4'
     FunctionsToExport = @(
+        'Connect-MT4Realtime',
+        'Connect-MT5Realtime',
         'Connect-MyWebApi',
+        'Disconnect-MT4Realtime',
+        'Disconnect-MT5Realtime',
         'Disconnect-MyWebApi',
         'Get-MT4AdmBalanceCheck',
         'Get-MT4AdmBalanceCheckByLogin',
@@ -177,6 +181,10 @@
         'Invoke-MT4UserRecordUpdate',
         'Invoke-MT4UsersGroupOp',
         'Invoke-MT4UsersSyncStart',
+        'Receive-MT4Realtime',
+        'Receive-MT5Realtime',
+        'Subscribe-MT4Realtime',
+        'Subscribe-MT5Realtime',
         'Update-MT4GroupRecord',
         'Update-MT4SymbolConfig',
         'Update-MT4UserRecord',
