@@ -36,7 +36,7 @@ function Invoke-MyWebApiRequest {
     $cursor = $null
 
     do {
-        if ($All) { $q['cursor'] = $cursor }
+        if ($All -and $cursor) { $q['cursor'] = $cursor }
         $qs = ($q.GetEnumerator() | ForEach-Object { "{0}={1}" -f $_.Key, [uri]::EscapeDataString([string]$_.Value) }) -join '&'
         $uri = "$($ctx.BaseUrl)$Path"
         if ($qs) { $uri = "$uri`?$qs" }
@@ -49,7 +49,7 @@ function Invoke-MyWebApiRequest {
         if ($resp.error) {
             $err = $resp.error
             $activityId = if ($resp.meta) { $resp.meta.activityId } else { $null }
-            $msg = if ($err.description) { $err.description } else { "v2 error: $($err.code)" }
+            $msg = if ($err.message) { $err.message } else { "v2 error: $($err.code)" }
             $rec = [System.Management.Automation.ErrorRecord]::new(
                 [System.Exception]::new("$msg (code=$($err.code); activityId=$activityId; managerCode=$($err.managerCode))"),
                 "MyWebApiError,$($err.code)",
@@ -59,10 +59,12 @@ function Invoke-MyWebApiRequest {
         }
 
         if ($All) {
-            foreach ($item in @($resp.data)) { $accumulated.Add($item) }
+            if ($null -ne $resp.data) {
+                foreach ($item in @($resp.data)) { $accumulated.Add($item) }
+            }
             $paging = if ($resp.meta) { $resp.meta.paging } else { $null }
             $cursor = if ($paging) { $paging.nextCursor } else { $null }
-            $more = [bool]($paging -and $paging.hasMore)
+            $more = [bool]($paging -and $paging.hasMore -and $paging.nextCursor)
         } else {
             return $resp.data
         }

@@ -25,17 +25,17 @@ Describe 'Invoke-MyWebApiRequest' {
         }
     }
 
-    It 'throws a terminating error carrying the envelope error code' {
+    It 'throws a terminating error carrying the envelope message' {
         InModuleScope MyWebApi {
             Mock Invoke-RestMethod -MockWith {
                 [pscustomobject]@{
                     data = $null
-                    error = [pscustomobject]@{ code = 'NotFound'; description = 'no such user'; managerCode = $null }
+                    error = [pscustomobject]@{ code = 'NotFound'; message = 'no such user'; managerCode = $null }
                     meta = [pscustomobject]@{ activityId = 'abc-123' }
                 }
             }
-            { Invoke-MyWebApiRequest -Method Get -Path '/x' } |
-                Should -Throw -ExpectedMessage '*no such user*'
+            $e = { Invoke-MyWebApiRequest -Method Get -Path '/x' } | Should -Throw -ExpectedMessage '*no such user*' -PassThru
+            $e.FullyQualifiedErrorId | Should -BeLike '*MyWebApiError,NotFound*'
         }
     }
 
