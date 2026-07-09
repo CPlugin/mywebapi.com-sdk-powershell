@@ -1,0 +1,12 @@
+# restored at build, never committed
+src/MyWebApi/lib/*.dll
+src/MyWebApi/lib/*.json
+# generator build output
+build/**/bin/
+build/**/obj/
+# test output
+tests/**/*.TestResults.xml
+*.nupkg
+# local credentials — .env.example IS committed, real .env is NOT
+.env
+.env.local
