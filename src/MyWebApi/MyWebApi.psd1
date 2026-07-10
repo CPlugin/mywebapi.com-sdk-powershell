@@ -200,7 +200,7 @@
             Tags         = @('REST', 'API', 'SignalR', 'trading', 'client', 'PSEdition_Core')
             LicenseUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell'
-            ReleaseNotes = 'Initial preview release.'
+            ReleaseNotes = 'First public release: full REST v2 surface as idiomatic cmdlets, real-time streaming over SignalR, OAuth2 client-credentials with automatic token refresh, cursor pagination and trade-platform discovery.'
         }
     }
 }

@@ -1,27 +1,36 @@
-# MyWebApi (PowerShell SDK)
+# MyWebApi — PowerShell SDK
 
-PowerShell 7.4+ client for the trading platform management WebAPI (v2): REST + real-time streaming.
+[![PowerShell Gallery](https://img.shields.io/powershellgallery/v/MyWebApi?label=PowerShell%20Gallery)](https://www.powershellgallery.com/packages/MyWebApi)
+[![Downloads](https://img.shields.io/powershellgallery/dt/MyWebApi?label=downloads)](https://www.powershellgallery.com/packages/MyWebApi)
+[![CI](https://github.com/CPlugin/mywebapi.com-sdk-powershell/actions/workflows/ci.yml/badge.svg)](https://github.com/CPlugin/mywebapi.com-sdk-powershell/actions/workflows/ci.yml)
 
-> **Trademark notice:** third-party trading platform names and trademarks are the property of their respective owners. This is an independent client library, not affiliated with, endorsed by, or sponsored by any platform vendor.
+PowerShell 7.4+ client for the MyWebAPI.com trading-platform management API (v2): the full REST surface as idiomatic cmdlets, plus real-time streaming over SignalR.
 
-## Requirements
-
-- PowerShell 7.4 or later (Windows, Linux, macOS).
+> **Trademark notice:** third-party trading-platform names and trademarks are the property of their respective owners. This is an independent client library, not affiliated with, endorsed by, or sponsored by any platform vendor.
 
 ## Install
+
+The module is published to the [PowerShell Gallery](https://www.powershellgallery.com/packages/MyWebApi) — install it directly, no build step required:
 
 ```powershell
 Install-Module MyWebApi -Scope CurrentUser
 ```
 
+Update to the latest version later with `Update-Module MyWebApi`.
+
+### Requirements
+
+- **PowerShell 7.4 or later** (Windows, Linux, macOS).
+- The REST surface works on any PowerShell 7.4+ runtime. Real-time streaming (SignalR) ships bundled and is verified on PowerShell 7.4 (LTS, .NET 8); on newer runtimes the REST surface is unaffected while the real-time layer may be unavailable.
+
 ## Credentials & environments
 
 API keys and trade platforms are created and managed in the **CPlugin Toolbox**:
 
-- Staging: <https://pre.toolbox.cplugin.com>
-- Production: <https://toolbox.cplugin.com>
+- Staging — [pre.toolbox.cplugin.com](https://pre.toolbox.cplugin.com)
+- Production — [toolbox.cplugin.com](https://toolbox.cplugin.com)
 
-`Connect-MyWebApi` accepts a named environment preset (or explicit `-BaseUrl`/`-Authority` for a custom deployment):
+`Connect-MyWebApi` takes a named environment preset (or explicit `-BaseUrl`/`-Authority` for a custom deployment):
 
 | Preset | API base | Authority |
 |--------|----------|-----------|
@@ -33,37 +42,80 @@ API keys and trade platforms are created and managed in the **CPlugin Toolbox**:
 ```powershell
 Import-Module MyWebApi
 
+# Connect once — the token is acquired and refreshed automatically.
 $secret = ConvertTo-SecureString $env:WEBAPI_CLIENT_SECRET -AsPlainText -Force
 Connect-MyWebApi -Environment Staging -ClientId $env:WEBAPI_CLIENT_ID -ClientSecret $secret
 
-# Discover your trade platform GUID(s):
+# Discover the trade platform id(s) your credentials can access.
 $tp = (Get-MyWebApiTradePlatform)[0].id
 
-Get-MT4UserRecordGet -TradePlatform $tp -Login 42        # cached read
-Get-MT4UserRecordRequest -TradePlatform $tp -Login 42    # live read
-Get-MT4UsersRequest -TradePlatform $tp -All              # follow all pages
+Get-MT4UserRecordGet     -TradePlatform $tp -Login 42   # cached (pump) read
+Get-MT4UserRecordRequest -TradePlatform $tp -Login 42   # live (manager) read
+Get-MT4UsersRequest      -TradePlatform $tp -All        # follow every page
+
+Disconnect-MyWebApi
 ```
+
+If you have exactly one trade platform, `Get-MyWebApiTradePlatform` returns it directly; with several, pick the `id` you need.
 
 ## Cmdlet naming
 
-Verb comes from the HTTP method (`Get`, `Invoke`, `Update`, `Set`, `Remove`); the noun is the platform (`MT4`/`MT5`) plus the API action name verbatim. Cached vs live variants are distinguished by the `Get`/`Request` suffix, matching the REST API.
+The verb comes from the HTTP method (`Get`, `Invoke`, `Update`, `Set`, `Remove`); the noun is the platform (`MT4`/`MT5`) plus the API action name verbatim. Cached vs. live variants keep the API's own `Get`/`Request` suffix, so the cmdlets map one-to-one onto the REST endpoints. Discover them with:
+
+```powershell
+Get-Command -Module MyWebApi                 # everything
+Get-Command -Module MyWebApi -Verb Get       # reads
+Get-Help Get-MT4UserRecordGet -Full          # per-cmdlet help
+```
+
+## Pagination
+
+List endpoints accept `-Limit`/`-Cursor`, or `-All` to walk every page transparently:
+
+```powershell
+Get-MT4TradesGet -TradePlatform $tp -All | Where-Object { $_.profit -lt 0 }
+```
 
 ## Real-time streaming
 
 ```powershell
-$rt = Connect-MT4Realtime
-Register-MT4Realtime -Connection $rt -Category Ticks -Symbol EURUSD   # ticks (needs -Symbol)
-Register-MT4Realtime -Connection $rt -Category Trades,Users,Symbols,MarginCall  # server streams
-Receive-MT4Realtime -Connection $rt -TimeoutSeconds 10 | ForEach-Object { $_.Payload }
+$rt = Connect-MT4Realtime -TradePlatform $tp
+
+# Ticks use subscribe + callback (needs a symbol); everything else is a server stream.
+Register-MT4Realtime -Connection $rt -Category Ticks -Symbol EURUSD
+Register-MT4Realtime -Connection $rt -Category Trades, Users, Symbols, MarginCall
+
+Receive-MT4Realtime -Connection $rt -TimeoutSeconds 30 |
+    Where-Object Method -eq 'OnTick' |
+    ForEach-Object { '{0}  bid={1} ask={2}' -f $_.Payload.symbol, $_.Payload.bid, $_.Payload.ask }
+
 Disconnect-MT4Realtime -Connection $rt
 ```
 
-## Development
+MT5 exposes the same shape via `Connect-MT5Realtime` / `Register-MT5Realtime` / `Receive-MT5Realtime` / `Disconnect-MT5Realtime`.
+
+## Examples
+
+Runnable scripts live in [`examples/`](examples/):
+
+- `01-connect-and-read.ps1` — connect, discover a platform, read (cached / live / paged)
+- `02-realtime-ticks.ps1` — stream live ticks
+- `03-trading-terminal.ps1` — live prices + open/close an order (dry-run by default; `-Live` places real orders)
+
+Copy `.env.example`, fill in your `WEBAPI_CLIENT_ID` / `WEBAPI_CLIENT_SECRET`, and run any example.
+
+## Development (from source)
+
+You only need this to work on the SDK itself — consumers install from the Gallery.
 
 ```bash
-./build.ps1          # restore lib, generate cmdlets, lint, test
+git clone https://github.com/CPlugin/mywebapi.com-sdk-powershell
+cd mywebapi.com-sdk-powershell
+./build.ps1        # restore SignalR lib, regenerate cmdlets, lint (PSScriptAnalyzer), test (Pester)
 ```
+
+REST cmdlets are generated from `spec/v2.json`; the real-time layer and session/auth are hand-written. See `PUBLISHING.md` for the release process.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT — see [`LICENSE`](LICENSE).
