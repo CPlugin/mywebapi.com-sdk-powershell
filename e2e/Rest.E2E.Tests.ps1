@@ -1,6 +1,9 @@
+# * Evaluate HasCreds at discovery time (before Describe block) so -Skip binds correctly.
+# * BeforeAll runs in RUN phase (too late for -Skip evaluation), so compute the gate here.
+$script:HasCreds = $env:WEBAPI_E2E -eq '1' -and $env:WEBAPI_CLIENT_ID -and $env:WEBAPI_CLIENT_SECRET
+
 BeforeAll {
     Import-Module "$PSScriptRoot/../src/MyWebApi/MyWebApi.psd1" -Force
-    $script:HasCreds = $env:WEBAPI_E2E -eq '1' -and $env:WEBAPI_CLIENT_ID -and $env:WEBAPI_CLIENT_SECRET
     if ($script:HasCreds) {
         $envName = if ($env:WEBAPI_ENV) { $env:WEBAPI_ENV } else { 'Staging' }
         $sec = ConvertTo-SecureString $env:WEBAPI_CLIENT_SECRET -AsPlainText -Force
