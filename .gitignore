@@ -10,3 +10,6 @@ tests/**/*.TestResults.xml
 # local credentials — .env.example IS committed, real .env is NOT
 .env
 .env.local
+
+# internal design docs — not published
+docs/superpowers/
