@@ -1,0 +1,32 @@
+name: Publish
+
+on:
+  push:
+    tags: ['v*']   # tag-gated: only version tags trigger a publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: psgallery
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install PowerShell modules
+        shell: pwsh
+        run: Install-PSResource Pester, PSScriptAnalyzer -TrustRepository
+
+      - name: Build (restore lib + generate + lint + test)
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Publish to PowerShell Gallery
+        shell: pwsh
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          Publish-PSResource -Path ./src/MyWebApi -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY
