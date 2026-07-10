@@ -37,7 +37,16 @@ function Invoke-MyWebApiRequest {
 
     do {
         if ($All -and $cursor) { $q['cursor'] = $cursor }
-        $qs = ($q.GetEnumerator() | ForEach-Object { "{0}={1}" -f $_.Key, [uri]::EscapeDataString([string]$_.Value) }) -join '&'
+        # * Array/collection query values (e.g. -Logins 1,2) must serialize as repeated keys
+        #   (logins=1&logins=2), matching ASP.NET Core's default query-string binding for array
+        #   parameters. Scalars keep the single "key=value" form.
+        $qsParts = [System.Collections.Generic.List[string]]::new()
+        foreach ($kv in $q.GetEnumerator()) {
+            foreach ($v in @($kv.Value)) {
+                $qsParts.Add(("{0}={1}" -f $kv.Key, [uri]::EscapeDataString([string]$v)))
+            }
+        }
+        $qs = $qsParts -join '&'
         $uri = "$($ctx.BaseUrl)$Path"
         if ($qs) { $uri = "$uri`?$qs" }
 

@@ -39,6 +39,18 @@ Describe 'Invoke-MyWebApiRequest' {
         }
     }
 
+    It 'encodes an array query value as repeated keys' {
+        InModuleScope MyWebApi {
+            Mock Invoke-RestMethod -MockWith {
+                [pscustomobject]@{ data = @(); error = $null; meta = $null }
+            }
+            Invoke-MyWebApiRequest -Method Get -Path '/list' -Query @{ logins = @(1, 2) } | Out-Null
+            Should -Invoke Invoke-RestMethod -ParameterFilter {
+                $Uri -like '*logins=1&logins=2*'
+            }
+        }
+    }
+
     It 'follows cursor paging when -All is set' {
         InModuleScope MyWebApi {
             $script:calls = 0

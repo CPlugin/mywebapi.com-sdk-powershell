@@ -6,11 +6,14 @@ function Get-MT4PerformanceRequest {
     [CmdletBinding()]
     param(
         [Parameter()][string] $TradePlatform,
+        [Parameter()][string] $From,
         [Parameter()][Nullable[guid]] $CacheId,
         [Parameter()][int] $CacheTimeout,
         [Parameter()][string] $IdempotencyKey
     )
-    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT4/{tradePlatform}/PerformanceRequest"; TradePlatform = $TradePlatform }
+    $q = @{}
+    if ($PSBoundParameters.ContainsKey('From')) { $q['from'] = $From }
+    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT4/{tradePlatform}/PerformanceRequest"; TradePlatform = $TradePlatform; Query = $q }
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }

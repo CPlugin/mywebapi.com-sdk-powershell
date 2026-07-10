@@ -8,6 +8,15 @@ string outRoot  = args.Length > 1 ? args[1] : "src/MyWebApi";
 var verbMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
     ["get"] = "Get", ["post"] = "Invoke", ["patch"] = "Update", ["put"] = "Set", ["delete"] = "Remove",
 };
+// PowerShell reserves these common-parameter names (several come from SupportsShouldProcess,
+// which every mutating cmdlet declares). A query param whose PascalCased name collides -- e.g.
+// "confirm" on SrvRestart colliding with -Confirm -- gets a "Query" suffix on the cmdlet
+// parameter only; the wire key sent to the API stays the original OpenAPI name.
+var reservedParamNames = new HashSet<string>(StringComparer.Ordinal) {
+    "Confirm", "Verbose", "Debug", "WhatIf", "ErrorAction", "WarningAction", "InformationAction",
+    "ErrorVariable", "WarningVariable", "InformationVariable", "OutVariable", "OutBuffer",
+    "PipelineVariable", "ProgressAction",
+};
 // HTTP methods OpenAPI allows in a path item that we intentionally do not map to a cmdlet verb.
 // Anything else under a path item (e.g. a shared "parameters" array) is not an HTTP method at all
 // and must stay silent -- only genuine-but-unmapped *operations* get a warning ("no silent drops").
@@ -115,6 +124,30 @@ for (int idx = 0; idx < collected.Count; idx++)
                            : "[CmdletBinding(SupportsShouldProcess)]")
             : "[CmdletBinding()]";
         sb.AppendLine($"    {cmdletBinding}");
+
+        // * Query params (op.parameters where in == "query"). Each becomes its own optional
+        //   cmdlet parameter, PascalCased from the OpenAPI name; the ORIGINAL wire name is kept
+        //   as the query key when the request is built below. Reserved cmdlet-parameter names
+        //   (see reservedParamNames above) get a "Query" suffix so they don't collide with
+        //   PowerShell's own common parameters.
+        var queryParams = new List<(string WireName, string ParamName, string TypeAnnotation, bool IsSwitch)>();
+        if (op.TryGetProperty("parameters", out var opParamsEl) && opParamsEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var p in opParamsEl.EnumerateArray())
+            {
+                if (!p.TryGetProperty("in", out var inEl) || inEl.GetString() != "query") continue;
+                string wireName = p.GetProperty("name").GetString() ?? "";
+                var schema = p.TryGetProperty("schema", out var schemaEl) ? schemaEl : default;
+                var (typeAnnotation, isSwitch) = MapQueryParamType(schema);
+                string pascalName = Pascal(wireName);
+                string paramName = reservedParamNames.Contains(pascalName) ? pascalName + "Query" : pascalName;
+                queryParams.Add((wireName, paramName, typeAnnotation, isSwitch));
+            }
+        }
+        // Cursor-paged endpoints (both "limit" and "cursor" query params) also get -All, which
+        // tells Invoke-MyWebApiRequest to follow the cursor and return every page concatenated.
+        bool isPaged = queryParams.Any(q => q.WireName == "limit") && queryParams.Any(q => q.WireName == "cursor");
+
         sb.AppendLine("    param(");
         var paramLines = new List<string>();
         foreach (var pp in pathParams)
@@ -124,6 +157,11 @@ for (int idx = 0; idx < collected.Count; idx++)
             else
                 paramLines.Add($"        [Parameter(Mandatory)][string] ${Pascal(pp)}");
         }
+        foreach (var q in queryParams)
+        {
+            paramLines.Add($"        [Parameter()]{q.TypeAnnotation} ${q.ParamName}");
+        }
+        if (isPaged) paramLines.Add("        [Parameter()][switch] $All");
         // Body param for mutating ops.
         if (isMutating) paramLines.Add("        [Parameter()][object] $Body");
         // Common params.
@@ -145,11 +183,23 @@ for (int idx = 0; idx < collected.Count; idx++)
         {
             sb.AppendLine($"    if (-not $PSCmdlet.ShouldProcess('{platform}/{action}')) {{ return }}");
         }
+        if (queryParams.Count > 0)
+        {
+            sb.AppendLine("    $q = @{}");
+            foreach (var q in queryParams)
+            {
+                sb.AppendLine(q.IsSwitch
+                    ? $"    if (${q.ParamName}) {{ $q['{q.WireName}'] = 'true' }}"
+                    : $"    if ($PSBoundParameters.ContainsKey('{q.ParamName}')) {{ $q['{q.WireName}'] = ${q.ParamName} }}");
+            }
+        }
         sb.Append($"    $reqArgs = @{{ Method = '{verb switch { "Get" => "Get", "Invoke" => "Post", "Update" => "Patch", "Set" => "Put", "Remove" => "Delete", _ => "Get" }}'; ");
         sb.Append($"Path = \"{runtimePath}\"");
         if (pathParams.Contains("tradePlatform")) sb.Append("; TradePlatform = $TradePlatform");
+        if (queryParams.Count > 0) sb.Append("; Query = $q");
         if (isMutating) sb.Append("; Body = $Body");
         sb.AppendLine(" }");
+        if (isPaged) sb.AppendLine("    if ($All) { $reqArgs.All = $true }");
         sb.AppendLine("    if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }");
         sb.AppendLine("    if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }");
         sb.AppendLine("    if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }");
@@ -172,3 +222,34 @@ if (warnings > 0) Console.WriteLine($"({warnings} warning(s) -- see stderr)");
 
 static string Pascal(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];
 static string EscapeHelp(string s) => s.Replace("#>", "# >");
+
+// Maps an OpenAPI query-parameter schema to a PowerShell type annotation (incl. brackets) and
+// whether it should be a [switch] rather than a bound value. Anything without a recognizable
+// "type" (plain string, date-time strings, $ref/allOf enums, or a missing schema) falls back to
+// [string] -- the wire value is always sent as text regardless of the PowerShell-side type.
+static (string TypeAnnotation, bool IsSwitch) MapQueryParamType(JsonElement schema)
+{
+    if (schema.ValueKind != JsonValueKind.Object) return ("[string]", false);
+    string? type = schema.TryGetProperty("type", out var t) ? t.GetString() : null;
+    string? format = schema.TryGetProperty("format", out var f) ? f.GetString() : null;
+
+    if (type == "array")
+    {
+        string elem = "string";
+        if (schema.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Object)
+        {
+            string? itemType = items.TryGetProperty("type", out var it) ? it.GetString() : null;
+            string? itemFormat = items.TryGetProperty("format", out var itf) ? itf.GetString() : null;
+            if (itemType == "integer") elem = itemFormat == "int64" ? "long" : "int";
+        }
+        return ($"[{elem}[]]", false);
+    }
+
+    return type switch
+    {
+        "integer" => (format == "int64" ? "[long]" : "[int]", false),
+        "number" => ("[double]", false),
+        "boolean" => ("[switch]", true),
+        _ => ("[string]", false),
+    };
+}
