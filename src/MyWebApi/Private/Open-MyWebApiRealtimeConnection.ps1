@@ -15,8 +15,16 @@ function Open-MyWebApiRealtimeConnection {
     }
     if (-not $script:MyWebApiContext) { throw 'Not connected. Call Connect-MyWebApi first.' }
     $ctx = $script:MyWebApiContext
+
+    # * The v2 hub's OnConnectedAsync REQUIRES a `tradePlatform` query parameter (a GUID
+    #   the credential is authorized for); without it the server throws a HubException and
+    #   closes the socket right after the handshake (StartAsync succeeds, then State flips
+    #   to Disconnected). Resolve it exactly like the REST pipeline does.
+    $tp = if ($TradePlatform) { $TradePlatform } else { $ctx.DefaultTradePlatform }
+    if (-not $tp) { throw 'No trade platform: pass -TradePlatform or set -DefaultTradePlatform on Connect-MyWebApi.' }
+
     $token = Get-MyWebApiToken
-    $url = "$($ctx.BaseUrl)/hubs/$Hub/v2?signalr_token=$([uri]::EscapeDataString($token))"
+    $url = "$($ctx.BaseUrl)/hubs/$Hub/v2?tradePlatform=$([uri]::EscapeDataString($tp))&signalr_token=$([uri]::EscapeDataString($token))"
 
     $builder = [Microsoft.AspNetCore.SignalR.Client.HubConnectionBuilder]::new()
     $null = [Microsoft.AspNetCore.SignalR.Client.HubConnectionBuilderHttpExtensions]::WithUrl($builder, $url)
@@ -26,12 +34,15 @@ function Open-MyWebApiRealtimeConnection {
     $sink = [MyWebApi.RealtimeSink]::new($connection)
     $sink.On('OnConnectionStatus')
     if ($Hub -eq 'mt4') { $sink.On('OnTick') }
-    $sink.StartAsync().GetAwaiter().GetResult()
+    # * [void]: GetResult() on a void Task returns a VoidTaskResult sentinel that would
+    #   otherwise leak into the pipeline, making this function emit an array instead of
+    #   the single connection object.
+    [void]$sink.StartAsync().GetAwaiter().GetResult()
 
     [pscustomobject]@{
         PSTypeName    = 'MyWebApi.RealtimeConnection'
         Hub           = $Hub
-        TradePlatform = if ($TradePlatform) { $TradePlatform } else { $ctx.DefaultTradePlatform }
+        TradePlatform = $tp
         Sink          = $sink
     }
 }

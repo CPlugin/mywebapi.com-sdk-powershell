@@ -26,7 +26,8 @@ function Register-MT4Realtime {
             foreach ($s in $Symbol) {
                 $task = [Microsoft.AspNetCore.SignalR.Client.HubConnectionExtensions]::InvokeAsync(
                     $Connection.Sink.Connection, 'SubscribeToTicks', $s, $ct)
-                $task.GetAwaiter().GetResult()
+                # * [void]: suppress the void-Task VoidTaskResult sentinel from the pipeline.
+                [void]$task.GetAwaiter().GetResult()
             }
         } else {
             $Connection.Sink.StartStream($streamMethods[$c])
