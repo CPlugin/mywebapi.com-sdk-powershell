@@ -22,7 +22,7 @@
 
 $script:E2EEnabled = $env:WEBAPI_E2E -eq '1' -and $env:WEBAPI_CLIENT_ID -and $env:WEBAPI_CLIENT_SECRET
 $script:E2ESymbol  = if ($env:WEBAPI_SYMBOL) { $env:WEBAPI_SYMBOL } else { 'EURUSD' }
-$script:E2ETickTimeoutSec = [int](([double]($env:WEBAPI_E2E_TICK_TIMEOUT_MS ? $env:WEBAPI_E2E_TICK_TIMEOUT_MS : 20000)) / 1000)
+$script:E2ETickTimeoutSec = [math]::Max(1, [int][math]::Ceiling(([double]$(if ($env:WEBAPI_E2E_TICK_TIMEOUT_MS) { $env:WEBAPI_E2E_TICK_TIMEOUT_MS } else { 20000 })) / 1000))
 
 # * Connects the module against the e2e target described by the environment.
 #   Prefers an explicit custom deployment (-BaseUrl/-Authority) when both are
