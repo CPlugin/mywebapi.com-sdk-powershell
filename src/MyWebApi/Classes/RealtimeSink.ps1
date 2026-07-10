@@ -3,6 +3,24 @@
 #   thread-safe BlockingCollection; the PowerShell Receive-* cmdlets drain it. This is
 #   the single trick that makes SignalR usable from PowerShell.
 if (-not ('MyWebApi.RealtimeSink' -as [type])) {
+    # * The real-time layer is OPTIONAL: a bare REST-only import (no scripts/restore-lib.sh
+    #   run, lib/ empty or absent) must still succeed. Compiling this type unconditionally
+    #   would make Add-Type throw FileNotFoundException the moment the SignalR client DLLs
+    #   are missing, which would fail the WHOLE module import -- not just realtime cmdlets.
+    #   So: check the DLLs exist on disk first, and silently skip compilation if not. Callers
+    #   that actually need realtime (Open-MyWebApiRealtimeConnection) check for the type's
+    #   presence themselves and throw a friendly error instead of a cryptic "type not found".
+    $libDir = Join-Path $PSScriptRoot '..' 'lib'
+    $signalRRefs = @(
+        (Join-Path $libDir 'Microsoft.AspNetCore.SignalR.Client.Core.dll'),
+        (Join-Path $libDir 'Microsoft.AspNetCore.SignalR.Client.dll')
+    )
+    $signalRRefsPresent = $true
+    foreach ($ref in $signalRRefs) {
+        if (-not (Test-Path $ref)) { $signalRRefsPresent = $false; break }
+    }
+
+    if ($signalRRefsPresent) {
     # * Add-Type's default reference set (a fixed curated list, not "everything currently
     #   loaded") does not include System.Collections.Concurrent / System.Text.Json, so the C#
     #   below fails with CS0234/CS0246 unless we pass them explicitly. (Task / TimeSpan / object
@@ -19,10 +37,6 @@ if (-not ('MyWebApi.RealtimeSink' -as [type])) {
     $frameworkRefs = @(
         'System.Collections.Concurrent',
         'System.Text.Json'
-    )
-    $signalRRefs = @(
-        (Join-Path $PSScriptRoot '..' 'lib' 'Microsoft.AspNetCore.SignalR.Client.Core.dll'),
-        (Join-Path $PSScriptRoot '..' 'lib' 'Microsoft.AspNetCore.SignalR.Client.dll')
     )
     Add-Type -ReferencedAssemblies ($frameworkRefs + $signalRRefs) -TypeDefinition @'
 using System;
@@ -97,4 +111,5 @@ namespace MyWebApi
     }
 }
 '@
+    }
 }

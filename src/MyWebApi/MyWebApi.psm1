@@ -1,7 +1,9 @@
 #Requires -Version 7.4
 Set-StrictMode -Version Latest
 
-# * Load bundled managed assemblies (SignalR client + deps) if present.
+# * Load bundled managed assemblies (SignalR client + deps) if present. These enable the
+#   OPTIONAL real-time layer only (Connect-MT4Realtime/Connect-MT5Realtime and friends) --
+#   the REST surface (all the Get-/New-/Set-/Remove- cmdlets) works fully without them.
 #   lib/ is populated by scripts/restore-lib.sh; absent during a bare REST-only import.
 $libPath = Join-Path $PSScriptRoot 'lib'
 if (Test-Path $libPath) {

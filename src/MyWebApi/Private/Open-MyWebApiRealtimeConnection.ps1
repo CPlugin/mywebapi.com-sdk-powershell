@@ -10,6 +10,9 @@ function Open-MyWebApiRealtimeConnection {
         [Parameter(Mandatory)][ValidateSet('mt4','mt5')][string] $Hub,
         [string] $TradePlatform
     )
+    if (-not ('MyWebApi.RealtimeSink' -as [type])) {
+        throw 'Real-time support requires the SignalR client assemblies. Reinstall the packaged module, or run scripts/restore-lib.sh when working from source.'
+    }
     if (-not $script:MyWebApiContext) { throw 'Not connected. Call Connect-MyWebApi first.' }
     $ctx = $script:MyWebApiContext
     $token = Get-MyWebApiToken
