@@ -20,6 +20,9 @@
 
 Describe 'SignalR e2e (staging)' -Skip:(-not $script:E2EEnabled) {
     BeforeAll {
+        # * Re-dot-source in the Run phase (Discovery-phase top-level dot-source
+        #   only set the -Skip gate; the helper functions must be defined here too).
+        . "$PSScriptRoot/_Setup.ps1"
         Import-Module "$PSScriptRoot/../src/MyWebApi/MyWebApi.psd1" -Force
         Connect-E2E
         $script:Tp = Resolve-E2ETradePlatform

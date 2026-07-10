@@ -20,6 +20,10 @@
 
 Describe 'REST e2e (staging)' -Skip:(-not $script:E2EEnabled) {
     BeforeAll {
+        # * Re-dot-source in the Run phase: the top-level dot-source ran during
+        #   Discovery (for the -Skip gate), but Connect-E2E/Resolve-E2ETradePlatform
+        #   must also be defined in the Run scope where BeforeAll/It execute.
+        . "$PSScriptRoot/_Setup.ps1"
         Import-Module "$PSScriptRoot/../src/MyWebApi/MyWebApi.psd1" -Force
         Connect-E2E
         $script:Tp = Resolve-E2ETradePlatform

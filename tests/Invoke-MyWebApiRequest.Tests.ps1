@@ -25,6 +25,31 @@ Describe 'Invoke-MyWebApiRequest' {
         }
     }
 
+    It 'returns data when the server OMITS the null error field (StrictMode-safe)' {
+        # * Regression: the real server drops null envelope fields, so a success
+        #   response has NO 'error' key at all. Under Set-StrictMode a direct
+        #   $resp.error would throw PropertyNotFoundException. The success payload
+        #   here intentionally has only 'data' + 'meta' (no 'error').
+        InModuleScope MyWebApi {
+            Mock Invoke-RestMethod -MockWith {
+                [pscustomobject]@{ data = [pscustomobject]@{ login = 7 }; meta = [pscustomobject]@{ activityId = 'a1' } }
+            }
+            $r = Invoke-MyWebApiRequest -Method Get -Path '/x'
+            $r.login | Should -Be 7
+        }
+    }
+
+    It 'throws when server reports an error even with data field omitted' {
+        # * Error response with no 'data' key (omitted), only 'error' + 'meta'.
+        InModuleScope MyWebApi {
+            Mock Invoke-RestMethod -MockWith {
+                [pscustomobject]@{ error = [pscustomobject]@{ code = 'NotFound'; message = 'nope' }; meta = [pscustomobject]@{ activityId = 'a2' } }
+            }
+            $e = { Invoke-MyWebApiRequest -Method Get -Path '/x' } | Should -Throw -ExpectedMessage '*nope*' -PassThru
+            $e.FullyQualifiedErrorId | Should -BeLike '*MyWebApiError,NotFound*'
+        }
+    }
+
     It 'throws a terminating error carrying the envelope message' {
         InModuleScope MyWebApi {
             Mock Invoke-RestMethod -MockWith {

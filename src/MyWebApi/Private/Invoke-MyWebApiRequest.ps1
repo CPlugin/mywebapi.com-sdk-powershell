@@ -16,6 +16,17 @@ function Invoke-MyWebApiRequest {
     if (-not $script:MyWebApiContext) { throw 'Not connected. Call Connect-MyWebApi first.' }
     $ctx = $script:MyWebApiContext
 
+    # * Safe property read for the v2 envelope. Under `Set-StrictMode -Version Latest`
+    #   a direct `$resp.error` throws PropertyNotFoundException when the server OMITS
+    #   a null field (e.g. success responses carry no `error` key). Reading via
+    #   PSObject.Properties returns $null for an absent property instead of throwing.
+    function Get-EnvProp($obj, $name) {
+        if ($null -eq $obj) { return $null }
+        $p = $obj.PSObject.Properties[$name]
+        if ($p) { return $p.Value }
+        return $null
+    }
+
     # Resolve {tradePlatform} from arg or session default.
     if ($Path -like '*{tradePlatform}*') {
         $tp = if ($TradePlatform) { $TradePlatform } else { $ctx.DefaultTradePlatform }
@@ -55,27 +66,33 @@ function Invoke-MyWebApiRequest {
 
         $resp = Invoke-RestMethod @irmArgs
 
-        if ($resp.error) {
-            $err = $resp.error
-            $activityId = if ($resp.meta) { $resp.meta.activityId } else { $null }
-            $msg = if ($err.message) { $err.message } else { "v2 error: $($err.code)" }
+        $errObj = Get-EnvProp $resp 'error'
+        if ($errObj) {
+            $metaObj     = Get-EnvProp $resp 'meta'
+            $activityId  = Get-EnvProp $metaObj 'activityId'
+            $code        = Get-EnvProp $errObj 'code'
+            $errMessage  = Get-EnvProp $errObj 'message'
+            $managerCode = Get-EnvProp $errObj 'managerCode'
+            $msg = if ($errMessage) { $errMessage } else { "v2 error: $code" }
             $rec = [System.Management.Automation.ErrorRecord]::new(
-                [System.Exception]::new("$msg (code=$($err.code); activityId=$activityId; managerCode=$($err.managerCode))"),
-                "MyWebApiError,$($err.code)",
+                [System.Exception]::new("$msg (code=$code; activityId=$activityId; managerCode=$managerCode)"),
+                "MyWebApiError,$code",
                 [System.Management.Automation.ErrorCategory]::InvalidOperation,
                 $null)
             $PSCmdlet.ThrowTerminatingError($rec)
         }
 
+        $dataObj = Get-EnvProp $resp 'data'
         if ($All) {
-            if ($null -ne $resp.data) {
-                foreach ($item in @($resp.data)) { $accumulated.Add($item) }
+            if ($null -ne $dataObj) {
+                foreach ($item in @($dataObj)) { $accumulated.Add($item) }
             }
-            $paging = if ($resp.meta) { $resp.meta.paging } else { $null }
-            $cursor = if ($paging) { $paging.nextCursor } else { $null }
-            $more = [bool]($paging -and $paging.hasMore -and $paging.nextCursor)
+            $metaObj = Get-EnvProp $resp 'meta'
+            $paging  = Get-EnvProp $metaObj 'paging'
+            $cursor  = Get-EnvProp $paging 'nextCursor'
+            $more    = [bool]($paging -and (Get-EnvProp $paging 'hasMore') -and $cursor)
         } else {
-            return $resp.data
+            return $dataObj
         }
     } while ($All -and $more)
 
