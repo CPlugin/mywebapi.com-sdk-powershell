@@ -38,7 +38,13 @@ if (-not ('MyWebApi.RealtimeSink' -as [type])) {
         'System.Collections.Concurrent',
         'System.Text.Json'
     )
-    Add-Type -ReferencedAssemblies ($frameworkRefs + $signalRRefs) -TypeDefinition @'
+    # * try/catch + nowarn:1701/1702 -- the bundled SignalR client is built for net8; on a pwsh
+    #   whose runtime System.* identity differs (e.g. .NET 10) Roslyn reports CS1701/CS1702
+    #   "assuming assembly reference matches" and Add-Type surfaces it as a compile failure.
+    #   Suppress those version-mismatch diagnostics, and if compilation still fails, degrade
+    #   gracefully (REST keeps working; Open-MyWebApiRealtimeConnection throws a clear error).
+    try {
+    Add-Type -CompilerOptions '-nowarn:1701,1702' -ReferencedAssemblies ($frameworkRefs + $signalRRefs) -TypeDefinition @'
 using System;
 using System.Collections.Concurrent;
 using System.Text.Json;
@@ -111,5 +117,8 @@ namespace MyWebApi
     }
 }
 '@
+    } catch {
+        Write-Verbose "MyWebApi: real-time layer unavailable on this runtime ($($_.Exception.Message))"
+    }
     }
 }
