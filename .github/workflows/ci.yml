@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install PowerShell modules
+        shell: pwsh
+        run: |
+          Set-PSResourceRepository PSGallery -Trusted
+          Install-PSResource Pester, PSScriptAnalyzer -TrustRepository
+
+      - name: Restore SignalR client lib
+        run: ./scripts/restore-lib.sh
+
+      - name: Generate cmdlets + update exports
+        shell: pwsh
+        run: |
+          ./scripts/generate.sh
+          ./scripts/update-manifest-exports.ps1
+
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $i = Invoke-ScriptAnalyzer -Path ./src/MyWebApi -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+          if ($i) { $i | Format-Table -AutoSize; throw "Analyzer found $($i.Count) issue(s)." }
+
+      - name: Pester
+        shell: pwsh
+        run: |
+          $cfg = New-PesterConfiguration
+          $cfg.Run.Path = './tests'
+          $cfg.Run.Exit = $true
+          $cfg.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $cfg
