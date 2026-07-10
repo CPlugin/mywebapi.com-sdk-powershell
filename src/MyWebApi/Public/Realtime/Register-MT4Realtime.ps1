@@ -1,5 +1,5 @@
-function Subscribe-MT5Realtime {
-    <# .SYNOPSIS Subscribes the MT5 connection to one or more event categories. #>
+function Register-MT4Realtime {
+    <# .SYNOPSIS Subscribes the MT4 connection to one or more event categories. #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][pscustomobject] $Connection,
