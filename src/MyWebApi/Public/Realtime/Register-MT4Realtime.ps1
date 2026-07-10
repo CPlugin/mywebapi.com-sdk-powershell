@@ -25,7 +25,7 @@ function Register-MT4Realtime {
             if (-not $Symbol) { throw '-Symbol is required when subscribing to Ticks.' }
             foreach ($s in $Symbol) {
                 $task = [Microsoft.AspNetCore.SignalR.Client.HubConnectionExtensions]::InvokeAsync(
-                    $Connection.Sink.Connection, 'SubscribeToTicks', [object[]]@($s), $ct)
+                    $Connection.Sink.Connection, 'SubscribeToTicks', $s, $ct)
                 $task.GetAwaiter().GetResult()
             }
         } else {
