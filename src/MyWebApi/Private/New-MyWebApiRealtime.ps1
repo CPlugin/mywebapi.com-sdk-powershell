@@ -16,9 +16,8 @@ function New-MyWebApiRealtime {
     $connection = $builder.Build()
 
     $sink = [MyWebApi.RealtimeSink]::new($connection)
-    foreach ($m in 'OnTick','OnTradeUpdate','OnUserUpdate','OnSymbolUpdate','OnMarginCall','OnConnectionStatus') {
-        $sink.On($m)
-    }
+    $sink.On('OnConnectionStatus')
+    if ($Hub -eq 'mt4') { $sink.On('OnTick') }
     $sink.StartAsync().GetAwaiter().GetResult()
 
     [pscustomobject]@{

@@ -37,26 +37,57 @@ namespace MyWebApi
     public sealed class RealtimeSink : IDisposable
     {
         private readonly BlockingCollection<object> _queue = new BlockingCollection<object>();
+        private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         public HubConnection Connection { get; }
 
         public RealtimeSink(HubConnection connection) { Connection = connection; }
 
-        // Register a hub receive handler that enqueues the payload as an envelope
-        // { method, payload } where payload is a raw JSON string (parsed on the PS side).
+        // Register a server->client callback (OnConnectionStatus, OnTick): enqueue the raw JSON.
         public void On(string method)
         {
             Connection.On<JsonElement>(method, arg =>
             {
-                _queue.Add(new PayloadEnvelope { Method = method, Json = arg.GetRawText() });
+                try { _queue.Add(new PayloadEnvelope { Method = method, Json = arg.GetRawText() }); }
+                catch { /* queue completed/disposed during shutdown - drop late callback */ }
+            });
+        }
+
+        // Consume a server-streaming hub method on a background task, funneling items into the queue.
+        public void StartStream(string method)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await foreach (var item in Connection.StreamAsync<JsonElement>(method, _cts.Token))
+                    {
+                        try { _queue.Add(new PayloadEnvelope { Method = method, Json = item.GetRawText() }); }
+                        catch { break; }
+                    }
+                }
+                catch (OperationCanceledException) { /* normal on disconnect */ }
+                catch { /* stream ended / connection closed */ }
             });
         }
 
         public bool TryTake(out object item, int timeoutMs) => _queue.TryTake(out item, timeoutMs);
 
         public Task StartAsync() => Connection.StartAsync();
-        public Task StopAsync()  => Connection.StopAsync();
 
-        public void Dispose() { _queue.Dispose(); }
+        public async Task StopAsync()
+        {
+            _cts.Cancel();
+            try { await Connection.StopAsync(); } catch { }
+            try { await Connection.DisposeAsync(); } catch { }
+            _queue.CompleteAdding();
+        }
+
+        public void Dispose()
+        {
+            try { _cts.Cancel(); } catch { }
+            _cts.Dispose();
+            _queue.Dispose();
+        }
     }
 
     public sealed class PayloadEnvelope
