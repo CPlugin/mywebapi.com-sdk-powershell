@@ -19,8 +19,11 @@ jobs:
       - name: Install PowerShell modules
         shell: pwsh
         run: |
-          Set-PSResourceRepository PSGallery -Trusted
-          Install-PSResource Pester, PSScriptAnalyzer -TrustRepository
+          # * Classic PowerShellGet (Install-Module) is stable on hosted runners;
+          #   Install-PSResource/PSResourceGet intermittently fails to init its
+          #   repository store ("Could not find a part of the path") on a clean image.
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Pester, PSScriptAnalyzer -Force -Scope CurrentUser -AllowClobber
 
       - name: Restore SignalR client lib
         run: ./scripts/restore-lib.sh

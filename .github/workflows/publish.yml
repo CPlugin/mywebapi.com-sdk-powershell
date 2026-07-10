@@ -18,7 +18,9 @@ jobs:
 
       - name: Install PowerShell modules
         shell: pwsh
-        run: Install-PSResource Pester, PSScriptAnalyzer -TrustRepository
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Pester, PSScriptAnalyzer -Force -Scope CurrentUser -AllowClobber
 
       - name: Build (restore lib + generate + lint + test)
         shell: pwsh
@@ -29,4 +31,4 @@ jobs:
         env:
           PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
-          Publish-PSResource -Path ./src/MyWebApi -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY
+          Publish-Module -Path ./src/MyWebApi -Repository PSGallery -NuGetApiKey $env:PSGALLERY_API_KEY
