@@ -18,5 +18,7 @@ if ($issues) { $issues | Format-Table -AutoSize; throw "PSScriptAnalyzer found $
 Write-Host 'Running Pester...' -ForegroundColor Cyan
 $cfg = New-PesterConfiguration
 $cfg.Run.Path = "$root/tests"
+$cfg.Run.PassThru = $true
 $cfg.Output.Verbosity = 'Detailed'
-Invoke-Pester -Configuration $cfg
+$result = Invoke-Pester -Configuration $cfg
+if ($result.FailedCount -gt 0) { throw "$($result.FailedCount) Pester test(s) failed." }
