@@ -1,5 +1,10 @@
-function New-MyWebApiRealtime {
+function Open-MyWebApiRealtimeConnection {
     # Builds and starts a hub connection for the given hub path, returns a wrapper object.
+    # * Named 'Open-' (not 'New-') on purpose: it has a real side effect (opens a live
+    #   network connection via StartAsync()), so the 'New' verb would make
+    #   PSUseShouldProcessForStateChangingFunctions flag it. It is Private/unexported and
+    #   always called unconditionally by the public Connect-MT4Realtime/Connect-MT5Realtime
+    #   cmdlets, so ShouldProcess plumbing here would be unreachable boilerplate.
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][ValidateSet('mt4','mt5')][string] $Hub,

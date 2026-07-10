@@ -6,7 +6,14 @@ Set-StrictMode -Version Latest
 $libPath = Join-Path $PSScriptRoot 'lib'
 if (Test-Path $libPath) {
     foreach ($dll in Get-ChildItem -Path $libPath -Filter '*.dll' -ErrorAction SilentlyContinue) {
-        try { Add-Type -Path $dll.FullName -ErrorAction Stop } catch { <# already loaded / incompatible #> }
+        try {
+            Add-Type -Path $dll.FullName -ErrorAction Stop
+        } catch {
+            # * Non-fatal: the assembly may already be loaded, or incompatible with the
+            #   current platform (e.g. a Windows-only dependency under a non-Windows host).
+            #   Realtime cmdlets will surface a clear error later if a required type is missing.
+            Write-Verbose "Skipping assembly '$($dll.Name)': $($_.Exception.Message)"
+        }
     }
 }
 

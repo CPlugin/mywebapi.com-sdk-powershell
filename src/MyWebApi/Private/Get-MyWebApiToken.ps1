@@ -13,7 +13,7 @@ function Get-MyWebApiToken {
     if ($stillValid) { return $ctx.AccessToken }
 
     if (-not $ctx.ClientId) {
-        # Pre-set token with no refresh credentials — return as-is (may be expired; server will 401).
+        # Pre-set token with no refresh credentials -- return as-is (may be expired; server will 401).
         return $ctx.AccessToken
     }
 
