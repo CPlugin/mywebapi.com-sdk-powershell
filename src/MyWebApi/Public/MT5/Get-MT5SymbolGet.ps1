@@ -5,6 +5,7 @@ function Get-MT5SymbolGet {
     #>
     [CmdletBinding()]
     param(
+        [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
         [Parameter(Mandatory)][string] $Symbol,
         [Parameter()][Nullable[guid]] $CacheId,
@@ -15,5 +16,5 @@ function Get-MT5SymbolGet {
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
-    Invoke-MyWebApiRequest @reqArgs
+    Invoke-MyWebApiRequest -Connection $Connection @reqArgs
 }

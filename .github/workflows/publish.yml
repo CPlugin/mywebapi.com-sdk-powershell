@@ -2,7 +2,13 @@ name: Publish
 
 on:
   push:
-    tags: ['v*']   # tag-gated: only version tags trigger a publish
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_VERSION: '8.24.2'
 
 jobs:
   publish:
@@ -11,10 +17,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '8.0.x'
+
+      - name: Verify tag, PowerShell, and .NET versions
+        shell: pwsh
+        run: |
+          & pwsh -NoProfile -NonInteractive -File ./ci/Assert-ReleaseTag.ps1
+          $ps = $PSVersionTable.PSVersion
+          if ($ps.Major -ne 7 -or $ps.Minor -lt 4) { throw "PowerShell 7.4+ is required; got $ps." }
+          $dotnet = dotnet --version
+          if ($dotnet -notmatch '^8\.') { throw ".NET 8 SDK is required; got $dotnet." }
 
       - name: Install PowerShell modules
         shell: pwsh
@@ -22,13 +37,110 @@ jobs:
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
           Install-Module -Name Pester, PSScriptAnalyzer -Force -Scope CurrentUser -AllowClobber
 
-      - name: Build (restore lib + generate + lint + test)
-        shell: pwsh
-        run: ./build.ps1
-
-      - name: Publish to PowerShell Gallery
+      - name: Restore SignalR client lib
+        run: ./scripts/restore-lib.sh
+      - name: Audit restored .NET dependency graph
         shell: pwsh
         env:
+          VULNERABILITY_REPORT: ${{ runner.temp }}/mywebapi-powershell-release/dotnet-vulnerabilities.json
+        run: |
+          New-Item -ItemType Directory -Path (Split-Path -Parent $env:VULNERABILITY_REPORT) -Force | Out-Null
+          $raw = (& dotnet list ./build/RealtimeLib/RealtimeLib.csproj package --vulnerable --include-transitive --format json 2>&1 | Out-String).Trim()
+          $exitCode = $LASTEXITCODE
+          $raw | Set-Content -LiteralPath $env:VULNERABILITY_REPORT -Encoding utf8
+          if ($exitCode -ne 0) { throw "dotnet vulnerability audit failed with exit code $exitCode." }
+          $report = $raw | ConvertFrom-Json
+          $packages = @($report.projects | ForEach-Object { $_.frameworks | ForEach-Object { @($_.topLevelPackages) + @($_.transitivePackages) } })
+          $findings = @($packages | Where-Object { $null -ne $_.vulnerabilities -and @($_.vulnerabilities).Count -gt 0 })
+          if ($findings.Count -gt 0) {
+              $names = $findings | ForEach-Object { "$($_.id)@$($_.resolvedVersion)" }
+              throw "Vulnerable runtime dependencies found: $($names -join ', ')"
+          }
+      - name: Build, generate, lint, and test
+        shell: pwsh
+        run: pwsh -NoProfile -NonInteractive -File ./build.ps1 -SkipLib
+
+      - name: Re-check tag against generated manifest
+        shell: pwsh
+        run: pwsh -NoProfile -NonInteractive -File ./ci/Assert-ReleaseTag.ps1
+
+      - name: Package the exact release candidate
+        id: package
+        shell: pwsh
+        env:
+          OUTPUT_DIRECTORY: ${{ runner.temp }}/mywebapi-powershell-release
+        run: |
+          $json = (& pwsh -NoProfile -NonInteractive -File ./ci/Build-Release.ps1 -OutputDirectory $env:OUTPUT_DIRECTORY | Out-String).Trim() | ConvertFrom-Json
+          if ($json.Module -ne 'MyWebApi') { throw "Unexpected package module: $($json.Module)." }
+          if ([int64]$json.PackageBytes -le 0) { throw 'The release package has zero bytes.' }
+          "package=$($json.Package)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "version=$($json.Version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "stage=$($json.Stage)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Consumer smoke against the actual nupkg
+        shell: pwsh
+        env:
+          PACKAGE_PATH: ${{ steps.package.outputs.package }}
+        run: pwsh -NoProfile -NonInteractive -File ./ci/Verify-Release.ps1 -PackagePath $env:PACKAGE_PATH
+
+      - name: Extract package for audit
+        shell: pwsh
+        env:
+          PACKAGE_PATH: ${{ steps.package.outputs.package }}
+          EXTRACT_DIRECTORY: ${{ runner.temp }}/mywebapi-powershell-release/extracted
+        run: |
+          if (Test-Path -LiteralPath $env:EXTRACT_DIRECTORY) { Remove-Item -LiteralPath $env:EXTRACT_DIRECTORY -Recurse -Force }
+          Expand-Archive -LiteralPath $env:PACKAGE_PATH -DestinationPath $env:EXTRACT_DIRECTORY
+          if (-not (Get-ChildItem -LiteralPath $env:EXTRACT_DIRECTORY -File -Recurse)) { throw 'The extracted package has no files.' }
+
+      - name: Install pinned gitleaks CLI
+        shell: bash
+        run: ./ci/install-gitleaks.sh "$RUNNER_TEMP/gitleaks"
+
+      - name: Scan extracted package for secrets
+        shell: pwsh
+        env:
+          PACKAGE_PATH: ${{ steps.package.outputs.package }}
+          GITLEAKS_PATH: ${{ runner.temp }}/gitleaks
+          AUDIT_DIRECTORY: ${{ runner.temp }}/mywebapi-powershell-release/audit
+        run: pwsh -NoProfile -NonInteractive -File ./ci/Audit-Release.ps1 -PackagePath $env:PACKAGE_PATH -GitleaksPath $env:GITLEAKS_PATH -OutputDirectory $env:AUDIT_DIRECTORY
+
+      - name: Generate dependency SBOM from package contents
+        uses: anchore/sbom-action@v0
+        with:
+          syft-version: v1.51.1
+          path: ${{ runner.temp }}/mywebapi-powershell-release/extracted
+          format: spdx-json
+          output-file: ${{ runner.temp }}/mywebapi-powershell-release/MyWebApi.${{ steps.package.outputs.version }}.sbom.spdx.json
+          artifact-name: mywebapi-powershell-${{ steps.package.outputs.version }}-sbom.spdx.json
+
+      - name: Verify truthful SPDX inventory and provenance
+        shell: pwsh
+        env:
+          PACKAGE_PATH: ${{ steps.package.outputs.package }}
+          EXTRACT_DIRECTORY: ${{ runner.temp }}/mywebapi-powershell-release/extracted
+          SBOM_PATH: ${{ runner.temp }}/mywebapi-powershell-release/MyWebApi.${{ steps.package.outputs.version }}.sbom.spdx.json
+          PROVENANCE_PATH: ${{ runner.temp }}/mywebapi-powershell-release/MyWebApi.${{ steps.package.outputs.version }}.provenance.json
+          LOCK_FILE_PATH: build/RealtimeLib/packages.lock.json
+          EXPECTED_MODULE_VERSION: ${{ steps.package.outputs.version }}
+        run: pwsh -NoProfile -NonInteractive -File ./ci/Verify-SBOM.ps1 -PackagePath $env:PACKAGE_PATH -ExtractDirectory $env:EXTRACT_DIRECTORY -SbomPath $env:SBOM_PATH -ProvenancePath $env:PROVENANCE_PATH -LockFilePath $env:LOCK_FILE_PATH -ExpectedModuleVersion $env:EXPECTED_MODULE_VERSION
+      - name: Upload the exact tested release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: mywebapi-powershell-${{ steps.package.outputs.version }}
+          path: |
+            ${{ steps.package.outputs.package }}
+            ${{ runner.temp }}/mywebapi-powershell-release/MyWebApi.${{ steps.package.outputs.version }}.sbom.spdx.json
+            ${{ runner.temp }}/mywebapi-powershell-release/MyWebApi.${{ steps.package.outputs.version }}.provenance.json
+            ${{ runner.temp }}/mywebapi-powershell-release/dotnet-vulnerabilities.json
+            ${{ runner.temp }}/mywebapi-powershell-release/audit/gitleaks.sarif
+          if-no-files-found: error
+
+      - name: Publish exact tested nupkg to PSGallery
+        shell: pwsh
+        env:
+          PACKAGE_PATH: ${{ steps.package.outputs.package }}
           PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
         run: |
-          Publish-Module -Path ./src/MyWebApi -Repository PSGallery -NuGetApiKey $env:PSGALLERY_API_KEY
+          if ([string]::IsNullOrWhiteSpace($env:PSGALLERY_API_KEY)) { throw 'PSGALLERY_API_KEY is missing from the psgallery environment.' }
+          dotnet nuget push $env:PACKAGE_PATH --source https://www.powershellgallery.com/api/v2/package --no-service-endpoint --api-key $env:PSGALLERY_API_KEY --no-symbols

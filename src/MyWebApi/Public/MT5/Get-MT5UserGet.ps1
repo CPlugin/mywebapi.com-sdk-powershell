@@ -5,6 +5,7 @@ function Get-MT5UserGet {
     #>
     [CmdletBinding()]
     param(
+        [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
         [Parameter(Mandatory)][string] $Login,
         [Parameter()][Nullable[guid]] $CacheId,
@@ -15,5 +16,5 @@ function Get-MT5UserGet {
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
-    Invoke-MyWebApiRequest @reqArgs
+    Invoke-MyWebApiRequest -Connection $Connection @reqArgs
 }

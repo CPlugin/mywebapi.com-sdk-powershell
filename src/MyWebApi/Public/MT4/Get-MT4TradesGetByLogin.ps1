@@ -5,6 +5,7 @@ function Get-MT4TradesGetByLogin {
     #>
     [CmdletBinding()]
     param(
+        [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
         [Parameter(Mandatory)][string] $Login,
         [Parameter(Mandatory)][string] $Group,
@@ -16,5 +17,5 @@ function Get-MT4TradesGetByLogin {
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
-    Invoke-MyWebApiRequest @reqArgs
+    Invoke-MyWebApiRequest -Connection $Connection @reqArgs
 }

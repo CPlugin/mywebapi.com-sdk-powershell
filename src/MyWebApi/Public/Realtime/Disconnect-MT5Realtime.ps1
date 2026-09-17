@@ -2,7 +2,16 @@ function Disconnect-MT5Realtime {
     <# .SYNOPSIS Stops and disposes an MT5 real-time connection. #>
     [CmdletBinding()]
     param([Parameter(Mandatory)][pscustomobject] $Connection)
-    # * [void]: suppress the void-Task VoidTaskResult sentinel from the pipeline.
-    [void]$Connection.Sink.StopAsync().GetAwaiter().GetResult()
-    $Connection.Sink.Dispose()
+    $timeout = if ($Connection.Session -and $Connection.Session.RealtimeTimeoutSeconds) { [int]$Connection.Session.RealtimeTimeoutSeconds } else { 30 }
+    $failure = $null
+    try {
+        [void]$Connection.Sink.StopAsync([Math]::Min($timeout, 3600) * 1000).GetAwaiter().GetResult()
+    } catch {
+        $failure = $_.Exception
+    } finally {
+        try { $Connection.Sink.Dispose() } catch {
+            if ($null -eq $failure) { $failure = $_.Exception }
+        }
+    }
+    if ($failure) { throw "Failed to stop MT5 realtime connection: $($failure.Message)" }
 }

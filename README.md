@@ -4,7 +4,7 @@
 [![Downloads](https://img.shields.io/powershellgallery/dt/MyWebApi?label=downloads)](https://www.powershellgallery.com/packages/MyWebApi)
 [![CI](https://github.com/CPlugin/mywebapi.com-sdk-powershell/actions/workflows/ci.yml/badge.svg)](https://github.com/CPlugin/mywebapi.com-sdk-powershell/actions/workflows/ci.yml)
 
-PowerShell 7.4+ client for the MyWebAPI.com trading-platform management API (v2): the full REST surface as idiomatic cmdlets, plus real-time streaming over SignalR.
+PowerShell 7.4 on .NET 8 client for the MyWebAPI.com trading-platform management API (v2): the full REST surface as idiomatic cmdlets, plus real-time streaming over SignalR.
 
 > **Trademark notice:** third-party trading-platform names and trademarks are the property of their respective owners. This is an independent client library, not affiliated with, endorsed by, or sponsored by any platform vendor.
 
@@ -20,8 +20,8 @@ Update to the latest version later with `Update-Module MyWebApi`.
 
 ### Requirements
 
-- **PowerShell 7.4 or later** (Windows, Linux, macOS).
-- The REST surface works on any PowerShell 7.4+ runtime. Real-time streaming (SignalR) ships bundled and is verified on PowerShell 7.4 (LTS, .NET 8); on newer runtimes the REST surface is unaffected while the real-time layer may be unavailable.
+- **PowerShell 7.4 on .NET 8** (Windows, Linux, macOS) is the supported runtime for the packaged SignalR assemblies.
+- The REST layer and realtime layer are loaded together; an incompatible bundled DLL is a clear import error, not a silently disabled feature. Use the exact supported runtime or a REST-only source tree with an empty lib/ directory.
 
 ## Credentials & environments
 
@@ -42,21 +42,24 @@ API keys and trade platforms are created and managed in the **CPlugin Toolbox**:
 ```powershell
 Import-Module MyWebApi
 
-# Connect once — the token is acquired and refreshed automatically.
+# Connect once — the token is acquired and refreshed automatically. Keep the returned
+# session when using more than one API target; every cmdlet accepts -Connection.
 $secret = ConvertTo-SecureString $env:WEBAPI_CLIENT_SECRET -AsPlainText -Force
-Connect-MyWebApi -Environment Staging -ClientId $env:WEBAPI_CLIENT_ID -ClientSecret $secret
+$session = Connect-MyWebApi -Environment Staging -ClientId $env:WEBAPI_CLIENT_ID -ClientSecret $secret
 
 # Discover the trade platform id(s) your credentials can access.
-$tp = (Get-MyWebApiTradePlatform)[0].id
+$tp = (Get-MyWebApiTradePlatform -Connection $session)[0].id
 
-Get-MT4UserRecordGet     -TradePlatform $tp -Login 42   # cached (pump) read
-Get-MT4UserRecordRequest -TradePlatform $tp -Login 42   # live (manager) read
-Get-MT4UsersRequest      -TradePlatform $tp -All        # follow every page
+Get-MT4UserRecordGet     -Connection $session -TradePlatform $tp -Login 42   # cached (pump) read
+Get-MT4UserRecordRequest -Connection $session -TradePlatform $tp -Login 42   # live (manager) read
+Get-MT4UsersRequest      -Connection $session -TradePlatform $tp -All        # follow every page
 
-Disconnect-MyWebApi
+Disconnect-MyWebApi -Connection $session
 ```
 
-If you have exactly one trade platform, `Get-MyWebApiTradePlatform` returns it directly; with several, pick the `id` you need.
+If you have exactly one trade platform, `Get-MyWebApiTradePlatform` returns it directly; with several, pick the id you need. Omit -Connection only when deliberately using the optional default session.
+
+Each connection validates HTTPS and same-origin OAuth discovery. HTTP is accepted only for an explicitly enabled loopback test endpoint (-AllowInsecureLoopback). Writes are never retried automatically; GET/HEAD/OPTIONS use only a bounded retry policy.
 
 ## Cmdlet naming
 
@@ -73,13 +76,13 @@ Get-Help Get-MT4UserRecordGet -Full          # per-cmdlet help
 List endpoints accept `-Limit`/`-Cursor`, or `-All` to walk every page transparently:
 
 ```powershell
-Get-MT4TradesGet -TradePlatform $tp -All | Where-Object { $_.profit -lt 0 }
+Get-MT4TradesGet -Connection $session -TradePlatform $tp -All | Where-Object { $_.profit -lt 0 }
 ```
 
 ## Real-time streaming
 
 ```powershell
-$rt = Connect-MT4Realtime -TradePlatform $tp
+$rt = Connect-MT4Realtime -Session $session -TradePlatform $tp
 
 # Ticks use subscribe + callback (needs a symbol); everything else is a server stream.
 Register-MT4Realtime -Connection $rt -Category Ticks -Symbol EURUSD

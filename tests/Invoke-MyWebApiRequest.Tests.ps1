@@ -14,12 +14,12 @@ Describe 'Invoke-MyWebApiRequest' {
 
     It 'unwraps .data on success and sends the bearer token' {
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod -MockWith {
+            Mock Invoke-MyWebApiHttpJson -MockWith {
                 [pscustomobject]@{ data = [pscustomobject]@{ login = 42 }; error = $null; meta = $null }
             }
             $r = Invoke-MyWebApiRequest -Method Get -Path '/api/v2/MT4/{tradePlatform}/UserRecordGet/42'
             $r.login | Should -Be 42
-            Should -Invoke Invoke-RestMethod -ParameterFilter {
+            Should -Invoke Invoke-MyWebApiHttpJson -ParameterFilter {
                 $Headers.Authorization -eq 'Bearer tok' -and $Uri -like 'https://api.example/*'
             }
         }
@@ -31,7 +31,7 @@ Describe 'Invoke-MyWebApiRequest' {
         #   $resp.error would throw PropertyNotFoundException. The success payload
         #   here intentionally has only 'data' + 'meta' (no 'error').
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod -MockWith {
+            Mock Invoke-MyWebApiHttpJson -MockWith {
                 [pscustomobject]@{ data = [pscustomobject]@{ login = 7 }; meta = [pscustomobject]@{ activityId = 'a1' } }
             }
             $r = Invoke-MyWebApiRequest -Method Get -Path '/x'
@@ -42,7 +42,7 @@ Describe 'Invoke-MyWebApiRequest' {
     It 'throws when server reports an error even with data field omitted' {
         # * Error response with no 'data' key (omitted), only 'error' + 'meta'.
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod -MockWith {
+            Mock Invoke-MyWebApiHttpJson -MockWith {
                 [pscustomobject]@{ error = [pscustomobject]@{ code = 'NotFound'; message = 'nope' }; meta = [pscustomobject]@{ activityId = 'a2' } }
             }
             $e = { Invoke-MyWebApiRequest -Method Get -Path '/x' } | Should -Throw -ExpectedMessage '*nope*' -PassThru
@@ -52,7 +52,7 @@ Describe 'Invoke-MyWebApiRequest' {
 
     It 'throws a terminating error carrying the envelope message' {
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod -MockWith {
+            Mock Invoke-MyWebApiHttpJson -MockWith {
                 [pscustomobject]@{
                     data = $null
                     error = [pscustomobject]@{ code = 'NotFound'; message = 'no such user'; managerCode = $null }
@@ -66,11 +66,11 @@ Describe 'Invoke-MyWebApiRequest' {
 
     It 'encodes an array query value as repeated keys' {
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod -MockWith {
+            Mock Invoke-MyWebApiHttpJson -MockWith {
                 [pscustomobject]@{ data = @(); error = $null; meta = $null }
             }
             Invoke-MyWebApiRequest -Method Get -Path '/list' -Query @{ logins = @(1, 2) } | Out-Null
-            Should -Invoke Invoke-RestMethod -ParameterFilter {
+            Should -Invoke Invoke-MyWebApiHttpJson -ParameterFilter {
                 $Uri -like '*logins=1&logins=2*'
             }
         }
@@ -79,7 +79,7 @@ Describe 'Invoke-MyWebApiRequest' {
     It 'follows cursor paging when -All is set' {
         InModuleScope MyWebApi {
             $script:calls = 0
-            Mock Invoke-RestMethod -MockWith {
+            Mock Invoke-MyWebApiHttpJson -MockWith {
                 $script:calls++
                 if ($script:calls -eq 1) {
                     [pscustomobject]@{ data = @(1,2); error = $null; meta = [pscustomobject]@{ paging = [pscustomobject]@{ nextCursor = 'c2'; hasMore = $true } } }
@@ -89,7 +89,7 @@ Describe 'Invoke-MyWebApiRequest' {
             }
             $items = Invoke-MyWebApiRequest -Method Get -Path '/list' -All
             $items | Should -Be @(1,2,3)
-            Should -Invoke Invoke-RestMethod -Times 2
+            Should -Invoke Invoke-MyWebApiHttpJson -Times 2
         }
     }
 }

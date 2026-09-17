@@ -5,6 +5,7 @@ function Get-MT4CfgRequestLiveUpdate {
     #>
     [CmdletBinding()]
     param(
+        [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
         [Parameter()][int] $Limit,
         [Parameter()][string] $Cursor,
@@ -21,5 +22,5 @@ function Get-MT4CfgRequestLiveUpdate {
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
-    Invoke-MyWebApiRequest @reqArgs
+    Invoke-MyWebApiRequest -Connection $Connection @reqArgs
 }

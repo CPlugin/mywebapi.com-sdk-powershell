@@ -150,6 +150,7 @@ for (int idx = 0; idx < collected.Count; idx++)
 
         sb.AppendLine("    param(");
         var paramLines = new List<string>();
+        paramLines.Add("        [Parameter()][object] $Connection");
         foreach (var pp in pathParams)
         {
             if (pp == "tradePlatform")
@@ -203,7 +204,7 @@ for (int idx = 0; idx < collected.Count; idx++)
         sb.AppendLine("    if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }");
         sb.AppendLine("    if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }");
         sb.AppendLine("    if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }");
-        sb.AppendLine("    Invoke-MyWebApiRequest @reqArgs");
+        sb.AppendLine("    Invoke-MyWebApiRequest -Connection $Connection @reqArgs");
         sb.AppendLine("}");
 
         string dir = Path.Combine(outRoot, "Public", platform);

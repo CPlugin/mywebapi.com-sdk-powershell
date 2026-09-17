@@ -5,6 +5,7 @@ function Update-MT5GroupRecord {
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
+        [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
         [Parameter(Mandatory)][string] $Group,
         [Parameter()][object] $Body,
@@ -17,5 +18,5 @@ function Update-MT5GroupRecord {
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
-    Invoke-MyWebApiRequest @reqArgs
+    Invoke-MyWebApiRequest -Connection $Connection @reqArgs
 }

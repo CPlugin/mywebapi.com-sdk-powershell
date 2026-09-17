@@ -1,30 +1,12 @@
 function Connect-MyWebApi {
     <#
     .SYNOPSIS
-        Establishes a session against the WebAPI v2 (OAuth2 client-credentials).
+        Creates an isolated WebAPI v2 session and makes it the optional default connection.
     .DESCRIPTION
-        Acquires a bearer token via IdentityServer client-credentials, or accepts a
-        pre-obtained token, and stores it for subsequent cmdlets. The client secret is
-        held as a SecureString and never logged. Use -Environment for a preset, or
-        -BaseUrl/-Authority for a custom deployment. API keys and trade platforms are
-        created and managed in the CPlugin Toolbox (https://toolbox.cplugin.com for
-        production, https://pre.toolbox.cplugin.com for staging).
-    .PARAMETER Environment
-        Named preset: 'Staging' or 'Production'. Sets BaseUrl and Authority.
-    .PARAMETER BaseUrl
-        Custom base URL of the API (when not using -Environment).
-    .PARAMETER Authority
-        Custom OIDC authority (IdentityServer) base URL used for token acquisition.
-    .PARAMETER ClientId
-        OAuth2 client id.
-    .PARAMETER ClientSecret
-        OAuth2 client secret, as a SecureString.
-    .PARAMETER AccessToken
-        A pre-obtained bearer token (skips the token endpoint; no auto-refresh).
-    .PARAMETER Scope
-        OAuth2 scope requested. Defaults to 'webapi'.
-    .PARAMETER DefaultTradePlatform
-        Default {tradePlatform} value used when a cmdlet omits -TradePlatform.
+        Returns a connection object. Pass that object to generated cmdlets with -Connection
+        when more than one target is used; omitting -Connection retains the single-session
+        convenience API. OAuth discovery is same-origin by default and all endpoints require
+        HTTPS, except an explicit loopback-only HTTP opt-in for tests.
     #>
     [CmdletBinding()]
     param(
@@ -35,14 +17,18 @@ function Connect-MyWebApi {
         [Parameter()][SecureString] $ClientSecret,
         [Parameter()][string] $AccessToken,
         [Parameter()][string] $Scope = 'webapi',
-        [Parameter()][string] $DefaultTradePlatform
+        [Parameter()][string] $DefaultTradePlatform,
+        [Parameter()][string] $TrustedTokenEndpoint,
+        [Parameter()][switch] $AllowInsecureLoopback,
+        [Parameter()][ValidateRange(1, 600)][int] $HttpTimeoutSeconds = 30,
+        [Parameter()][ValidateRange(1, 3600)][int] $RealtimeTimeoutSeconds = 30,
+        [Parameter()][ValidateRange(0, 3)][int] $MaxGetRetries = 2
     )
 
-    # Resolve base URL + authority: preset OR explicit.
     if ($Environment) {
-        $env = Resolve-MyWebApiEnvironment -Environment $Environment
-        $resolvedBase = $env.BaseUrl
-        $resolvedAuthority = $env.Authority
+        $environmentConfig = Resolve-MyWebApiEnvironment -Environment $Environment
+        $resolvedBase = $environmentConfig.BaseUrl
+        $resolvedAuthority = $environmentConfig.Authority
     } else {
         if (-not $BaseUrl) { throw 'Provide -Environment, or -BaseUrl (and -Authority for client-credentials).' }
         $resolvedBase = $BaseUrl
@@ -52,12 +38,16 @@ function Connect-MyWebApi {
     if (-not $AccessToken -and -not $ClientId) {
         throw 'Provide either -AccessToken, or -ClientId and -ClientSecret for client-credentials.'
     }
-
     if (-not $AccessToken -and -not $resolvedAuthority) {
         throw 'Authority is required for client-credentials: pass -Environment, or -Authority with -BaseUrl.'
     }
+    if (-not $AccessToken -and -not $ClientSecret) {
+        throw 'ClientSecret is required for client-credentials.'
+    }
 
-    $script:MyWebApiContext = @{
+    # Validate before storing any mutable session state. Authority and API URLs are
+    # deliberately separate so a token endpoint can never silently redirect credentials.
+    $candidate = [pscustomobject]@{
         BaseUrl              = $resolvedBase.TrimEnd('/')
         Authority            = if ($resolvedAuthority) { $resolvedAuthority.TrimEnd('/') } else { $null }
         ClientId             = $ClientId
@@ -65,11 +55,29 @@ function Connect-MyWebApi {
         Scope                = $Scope
         DefaultTradePlatform = $DefaultTradePlatform
         AccessToken          = $AccessToken
-        ExpiresAt            = $null
+        ExpiresAt            = if ($AccessToken) { [DateTimeOffset]::UtcNow.AddHours(1) } else { $null }
+        TrustedTokenEndpoint = $TrustedTokenEndpoint
+        AllowInsecureLoopback = [bool]$AllowInsecureLoopback
+        HttpTimeoutSeconds   = $HttpTimeoutSeconds
+        RealtimeTimeoutSeconds = $RealtimeTimeoutSeconds
+        MaxGetRetries        = $MaxGetRetries
+        CancellationSource    = [System.Threading.CancellationTokenSource]::new()
+        RefreshGate          = [System.Threading.SemaphoreSlim]::new(1, 1)
+        Disposed             = $false
+    }
+    $null = Assert-MyWebApiEndpoint -Value $candidate.BaseUrl -Name 'BaseUrl' -Context $candidate
+    if ($candidate.Authority) {
+        $null = Assert-MyWebApiEndpoint -Value $candidate.Authority -Name 'Authority' -Context $candidate
+    }
+    if ($TrustedTokenEndpoint) {
+        $null = Assert-MyWebApiEndpoint -Value $TrustedTokenEndpoint -Name 'TrustedTokenEndpoint' -Context $candidate
     }
 
+    # Keep the old one-session convenience while returning an explicit immutable target
+    # reference for callers that need independent sessions.
+    $script:MyWebApiContext = $candidate
     if (-not $AccessToken) {
-        # Prime the token now so connection errors surface at Connect time.
-        [void](Get-MyWebApiToken)
+        [void](Get-MyWebApiToken -Connection $candidate)
     }
+    return $candidate
 }

@@ -5,6 +5,7 @@ function Invoke-MT4DailySyncStart {
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
+        [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
         [Parameter()][int] $Timestamp,
         [Parameter()][object] $Body,
@@ -19,5 +20,5 @@ function Invoke-MT4DailySyncStart {
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
-    Invoke-MyWebApiRequest @reqArgs
+    Invoke-MyWebApiRequest -Connection $Connection @reqArgs
 }

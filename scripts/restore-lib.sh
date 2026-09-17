@@ -5,7 +5,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LIB="$ROOT/src/MyWebApi/lib"
 OUT="$ROOT/build/RealtimeLib/bin/publish"
 rm -rf "$LIB" "$OUT"; mkdir -p "$LIB"
-dotnet publish "$ROOT/build/RealtimeLib/RealtimeLib.csproj" -c Release -o "$OUT"
+LOCK="$ROOT/build/RealtimeLib/packages.lock.json"
+if [ ! -f "$LOCK" ]; then
+    # First restore creates the checked-in lock; every later restore is locked.
+    dotnet restore "$ROOT/build/RealtimeLib/RealtimeLib.csproj" --use-lock-file -p:RestoreLockedMode=false
+fi
+dotnet restore "$ROOT/build/RealtimeLib/RealtimeLib.csproj" --locked-mode
+dotnet publish "$ROOT/build/RealtimeLib/RealtimeLib.csproj" -c Release -o "$OUT" --no-restore
 # Copy the ENTIRE SignalR client dependency graph the module needs at runtime.
 # * The earlier allow-list missed transitive deps (e.g. System.IO.Pipelines), which
 #   compile fine (Add-Type ref) but fail at connect time with FileNotFoundException.
