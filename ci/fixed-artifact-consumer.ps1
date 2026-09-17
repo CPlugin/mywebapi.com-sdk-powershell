@@ -1,4 +1,4 @@
-# Bounded consumer smoke for the fixed MyWebApi 0.2.0 artifact or nupkg.
+# Bounded consumer smoke for the fixed MyWebApi 0.2.1 artifact or nupkg.
 [CmdletBinding()]
 param(
     [Parameter()][string] $ArtifactDir,
@@ -43,7 +43,7 @@ try {
     $manifestPath = Join-Path $ArtifactDir 'MyWebApi.psd1'
     if (-not (Test-Path $manifestPath)) { throw "MyWebApi.psd1 missing from artifact: $ArtifactDir" }
     $manifest = Test-ModuleManifest -Path $manifestPath
-    if ($manifest.Version -ne [version]'0.2.0') { throw "Expected module 0.2.0, got $($manifest.Version)." }
+    if ($manifest.Version -ne [version]'0.2.1') { throw "Expected module 0.2.1, got $($manifest.Version)." }
     Import-Module $manifestPath -Force
     $moduleImported = $true
     $exports = @(Get-Command -Module MyWebApi)

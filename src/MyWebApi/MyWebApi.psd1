@@ -1,6 +1,6 @@
 @{
     RootModule        = 'MyWebApi.psm1'
-    ModuleVersion     = '0.2.0'
+    ModuleVersion     = '0.2.1'
     GUID              = 'b7e2c1a4-9f3d-4c8e-8a2b-3d5f6e7a8b9c'
     Author            = 'CPlugin'
     CompanyName       = 'CPlugin'
@@ -200,7 +200,7 @@
             Tags         = @('REST', 'API', 'SignalR', 'trading', 'client', 'PSEdition_Core')
             LicenseUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell'
-            ReleaseNotes = '0.2.0: isolated connection objects with default-session compatibility, synchronized OAuth refresh, HTTPS/trusted discovery guards, bounded HTTP/realtime waits, safe GET retries, one-shot writes, and explicit SignalR faults.'
+            ReleaseNotes = '0.2.1: isolated connection objects with default-session compatibility, synchronized OAuth refresh, HTTPS/trusted discovery guards, bounded HTTP/realtime waits, safe GET retries, one-shot writes, and explicit SignalR faults.'
         }
     }
 }

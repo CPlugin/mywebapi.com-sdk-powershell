@@ -109,11 +109,12 @@ Copy `.env.example`, fill in your `WEBAPI_CLIENT_ID` / `WEBAPI_CLIENT_SECRET`, a
 
 ## Development (from source)
 
-You only need this to work on the SDK itself — consumers install from the Gallery.
+You only need this to work on the SDK itself — consumers install from the Gallery. The repository `global.json` pins the build SDK to .NET 8.0.425 with SDK roll-forward disabled; `dotnet --version` must report `8.0.425` before running the build.
 
 ```bash
 git clone https://github.com/CPlugin/mywebapi.com-sdk-powershell
 cd mywebapi.com-sdk-powershell
+dotnet --version   # 8.0.425, selected from global.json
 ./build.ps1        # restore SignalR lib, regenerate cmdlets, lint (PSScriptAnalyzer), test (Pester)
 ```
 
