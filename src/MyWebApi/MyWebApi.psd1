@@ -1,6 +1,6 @@
 @{
     RootModule        = 'MyWebApi.psm1'
-    ModuleVersion     = '0.2.1'
+    ModuleVersion     = '0.3.0'
     GUID              = 'b7e2c1a4-9f3d-4c8e-8a2b-3d5f6e7a8b9c'
     Author            = 'CPlugin'
     CompanyName       = 'CPlugin'
@@ -200,7 +200,7 @@
             Tags         = @('REST', 'API', 'SignalR', 'trading', 'client', 'PSEdition_Core')
             LicenseUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell'
-            ReleaseNotes = '0.2.1: isolated connection objects with default-session compatibility, synchronized OAuth refresh, HTTPS/trusted discovery guards, bounded HTTP/realtime waits, safe GET retries, one-shot writes, and explicit SignalR faults.'
+            ReleaseNotes = '0.3.0: request timeouts. Every REST cmdlet takes -RequestTimeout (1-300 s, sent as X-Request-Timeout) and Connect-MyWebApi -RequestTimeout sets a session default. The HTTP deadline now follows the server timeout plus 30 s. Timeout, OutcomeUnknown and Busy errors carry the X-Request-Outcome value, Retryable flag and guidance on TargetObject, Exception.Data and ErrorDetails.RecommendedAction; a client-side HTTP deadline is reported as MyWebApiHttpTimeout. Busy GETs are retried within MaxGetRetries; writes are never retried. New help topic about_MyWebApi_Timeouts. Error envelopes without meta no longer fail with a parameter-binding error. 0.2.1: isolated connection objects with default-session compatibility, synchronized OAuth refresh, HTTPS/trusted discovery guards, bounded HTTP/realtime waits, safe GET retries, one-shot writes, and explicit SignalR faults.'
         }
     }
 }

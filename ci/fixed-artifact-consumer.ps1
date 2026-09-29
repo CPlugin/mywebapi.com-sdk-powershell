@@ -1,4 +1,4 @@
-# Bounded consumer smoke for the fixed MyWebApi 0.2.1 artifact or nupkg.
+# Bounded consumer smoke for the fixed MyWebApi 0.3.0 artifact or nupkg.
 [CmdletBinding()]
 param(
     [Parameter()][string] $ArtifactDir,
@@ -43,7 +43,7 @@ try {
     $manifestPath = Join-Path $ArtifactDir 'MyWebApi.psd1'
     if (-not (Test-Path $manifestPath)) { throw "MyWebApi.psd1 missing from artifact: $ArtifactDir" }
     $manifest = Test-ModuleManifest -Path $manifestPath
-    if ($manifest.Version -ne [version]'0.2.1') { throw "Expected module 0.2.1, got $($manifest.Version)." }
+    if ($manifest.Version -ne [version]'0.3.0') { throw "Expected module 0.3.0, got $($manifest.Version)." }
     Import-Module $manifestPath -Force
     $moduleImported = $true
     $exports = @(Get-Command -Module MyWebApi)
@@ -51,6 +51,8 @@ try {
     if (-not (Get-Command Get-MT4AdmBalanceCheck).Parameters.ContainsKey('Connection')) { throw 'Generated connection parameter missing.' }
     if (-not (Get-Command Invoke-MT4AdmBalanceFix).Parameters.ContainsKey('Confirm')) { throw 'SupportsShouldProcess missing from write cmdlet.' }
     if (-not (Get-Command Connect-MT4Realtime).Parameters.ContainsKey('Session')) { throw 'Realtime session parameter missing.' }
+    if (-not (Get-Command Invoke-MT4AdmBalanceFix).Parameters.ContainsKey('RequestTimeout')) { throw 'Generated RequestTimeout parameter missing.' }
+    if (-not (Get-Command Connect-MyWebApi).Parameters.ContainsKey('RequestTimeout')) { throw 'Session RequestTimeout parameter missing.' }
 
     # Public HTTPS is mandatory; loopback HTTP is test-only and explicit.
     Assert-Throws { Connect-MyWebApi -BaseUrl 'http://127.0.0.1:1' -AccessToken 'synthetic' | Out-Null } 'HTTPS|loopback'
@@ -86,6 +88,17 @@ try {
     $after503 = @((State $baseA).requests | Where-Object path -like '*http503*').Count
     if (($after503 - $before503) -ne 3) { throw "Expected 3 bounded safe attempts (configured MaxGetRetries=2), saw $($after503 - $before503)." }
 
+    # Request timeouts: the header reaches the server, and an OutcomeUnknown write is reported
+    # with its outcome and sent exactly once.
+    Get-MT4ServerTime -Connection $a -TradePlatform 'timeout-header' -RequestTimeout 7.5 | Out-Null
+    if (@((State $baseA).requests | Where-Object { $_.path -like '*timeout-header*' -and $_.request_timeout -eq '7.5' }).Count -ne 1) { throw 'X-Request-Timeout header was not sent.' }
+    $outcomeError = $null
+    try { Invoke-MT4AdmBalanceFix -Connection $a -TradePlatform 'outcome-unknown' -Body @{ login = 1 } -IdempotencyKey 'probe-ou' -RequestTimeout 5 -Confirm:$false -ErrorAction Stop | Out-Null }
+    catch { $outcomeError = $_ }
+    if (-not $outcomeError -or $outcomeError.FullyQualifiedErrorId -notlike 'MyWebApiError,OutcomeUnknown*') { throw "Expected MyWebApiError,OutcomeUnknown, got '$($outcomeError.FullyQualifiedErrorId)'." }
+    if ($outcomeError.TargetObject.Outcome -ne 'unknown' -or $outcomeError.TargetObject.Retryable) { throw 'OutcomeUnknown error lacks outcome details.' }
+    if (@((State $baseA).requests | Where-Object path -like '*outcome-unknown*').Count -ne 1) { throw 'An OutcomeUnknown write was sent more than once.' }
+
     # Disconnect cancels the session source and prevents subsequent work.
     Disconnect-MyWebApi -Connection $b
     if (-not $b.CancellationSource.IsCancellationRequested) { throw 'Disconnect did not cancel the session token.' }
@@ -105,7 +118,7 @@ try {
     if (-not $faultSeen) { throw 'Background realtime fault was not propagated to Receive-MT4Realtime.' }
     try { Disconnect-MT4Realtime -Connection $rt -ErrorAction Stop } catch { }
     Disconnect-MyWebApi -Connection $a
-    [pscustomobject]@{ status = 'ok'; exports = $exports.Count; package = [bool]$PackagePath; contexts = 'independent'; oauth_cross_origin_secret_sent = $false; safe_get_attempts = 3; realtime = 'status+tick+fault'; cancellation = $true } | ConvertTo-Json -Compress
+    [pscustomobject]@{ status = 'ok'; exports = $exports.Count; package = [bool]$PackagePath; contexts = 'independent'; oauth_cross_origin_secret_sent = $false; safe_get_attempts = 3; request_timeout = 'header+outcome'; realtime = 'status+tick+fault'; cancellation = $true } | ConvertTo-Json -Compress
 }
 finally {
     foreach ($p in $servers) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }

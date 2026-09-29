@@ -7,6 +7,16 @@ function Connect-MyWebApi {
         when more than one target is used; omitting -Connection retains the single-session
         convenience API. OAuth discovery is same-origin by default and all endpoints require
         HTTPS, except an explicit loopback-only HTTP opt-in for tests.
+    .PARAMETER RequestTimeout
+        Session default for how long the server waits for the trading platform, in seconds
+        (1-300), sent as the X-Request-Timeout header on every REST call of this connection.
+        A cmdlet's own -RequestTimeout wins. Omit it to let the server apply each operation's
+        default (trade 5 s, read 10 s, change 15 s, history 30 s, maintenance 60 s).
+    .PARAMETER HttpTimeoutSeconds
+        Deadline of one HTTP call, in seconds (default 30). When omitted, trading platform calls
+        get the operation's server timeout plus 30 s if that is longer, so the server's own answer
+        (Timeout, OutcomeUnknown) arrives before the client gives up. When set, it is a hard cap,
+        except for calls with an explicit -RequestTimeout, which always get that value plus 30 s.
     #>
     [CmdletBinding()]
     param(
@@ -22,7 +32,8 @@ function Connect-MyWebApi {
         [Parameter()][switch] $AllowInsecureLoopback,
         [Parameter()][ValidateRange(1, 600)][int] $HttpTimeoutSeconds = 30,
         [Parameter()][ValidateRange(1, 3600)][int] $RealtimeTimeoutSeconds = 30,
-        [Parameter()][ValidateRange(0, 3)][int] $MaxGetRetries = 2
+        [Parameter()][ValidateRange(0, 3)][int] $MaxGetRetries = 2,
+        [Parameter()][ValidateRange(1, 300)][double] $RequestTimeout
     )
 
     if ($Environment) {
@@ -59,8 +70,10 @@ function Connect-MyWebApi {
         TrustedTokenEndpoint = $TrustedTokenEndpoint
         AllowInsecureLoopback = [bool]$AllowInsecureLoopback
         HttpTimeoutSeconds   = $HttpTimeoutSeconds
+        HttpTimeoutExplicit  = $PSBoundParameters.ContainsKey('HttpTimeoutSeconds')
         RealtimeTimeoutSeconds = $RealtimeTimeoutSeconds
         MaxGetRetries        = $MaxGetRetries
+        RequestTimeout       = if ($PSBoundParameters.ContainsKey('RequestTimeout')) { $RequestTimeout } else { $null }
         CancellationSource    = [System.Threading.CancellationTokenSource]::new()
         RefreshGate          = [System.Threading.SemaphoreSlim]::new(1, 1)
         Disposed             = $false

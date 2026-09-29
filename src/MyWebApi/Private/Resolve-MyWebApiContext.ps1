@@ -1,9 +1,12 @@
 function Get-MyWebApiContextProperty {
+    # Null-tolerant property read: the server omits null envelope fields (meta, paging, error),
+    # so a chained lookup through a missing object yields $null instead of a binding error.
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)][object] $Context,
+        [Parameter(Mandatory)][AllowNull()][object] $Context,
         [Parameter(Mandatory)][string] $Name
     )
+    if ($null -eq $Context) { return $null }
     if ($Context -is [System.Collections.IDictionary]) {
         return $Context[$Name]
     }
@@ -112,10 +115,14 @@ function Invoke-MyWebApiHttpJson {
         [Parameter(Mandatory)][string] $Uri,
         [hashtable] $Headers,
         [object] $JsonBody,
-        [hashtable] $FormBody
+        [hashtable] $FormBody,
+        # Overrides the session's HttpTimeoutSeconds for this one request.
+        [ValidateRange(1, 600)][int] $TimeoutSeconds,
+        # Filled with the response headers (name -> comma-joined values), also on a non-2xx answer.
+        [System.Collections.IDictionary] $ResponseHeaders
     )
     Assert-MyWebApiNotCancelled -Context $Context
-    $timeout = Get-MyWebApiTimeoutSeconds -Context $Context
+    $timeout = if ($PSBoundParameters.ContainsKey('TimeoutSeconds')) { $TimeoutSeconds } else { Get-MyWebApiTimeoutSeconds -Context $Context }
     $parentToken = Get-MyWebApiCancellationToken -Context $Context
     $linked = [System.Threading.CancellationTokenSource]::CreateLinkedTokenSource($parentToken)
     $linked.CancelAfter([TimeSpan]::FromSeconds($timeout))
@@ -146,6 +153,9 @@ function Invoke-MyWebApiHttpJson {
         } catch [System.OperationCanceledException] {
             if ($parentToken.IsCancellationRequested) { throw }
             throw [System.TimeoutException]::new("HTTP $Method $Uri exceeded the $timeout second deadline.")
+        }
+        if ($null -ne $ResponseHeaders) {
+            foreach ($header in $response.Headers) { $ResponseHeaders[$header.Key] = ($header.Value -join ',') }
         }
         $status = [int]$response.StatusCode
         if ($status -lt 200 -or $status -ge 300) {

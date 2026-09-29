@@ -59,7 +59,7 @@ Disconnect-MyWebApi -Connection $session
 
 If you have exactly one trade platform, `Get-MyWebApiTradePlatform` returns it directly; with several, pick the id you need. Omit -Connection only when deliberately using the optional default session.
 
-Each connection validates HTTPS and same-origin OAuth discovery. HTTP is accepted only for an explicitly enabled loopback test endpoint (-AllowInsecureLoopback). Writes are never retried automatically; GET/HEAD/OPTIONS use only a bounded retry policy.
+Each connection validates HTTPS and same-origin OAuth discovery. HTTP is accepted only for an explicitly enabled loopback test endpoint (-AllowInsecureLoopback). Writes are never retried automatically; GET/HEAD/OPTIONS use only a bounded retry policy (see [Timeouts and retries](#timeouts-and-retries)).
 
 ## Cmdlet naming
 
@@ -78,6 +78,41 @@ List endpoints accept `-Limit`/`-Cursor`, or `-All` to walk every page transpare
 ```powershell
 Get-MT4TradesGet -Connection $session -TradePlatform $tp -All | Where-Object { $_.profit -lt 0 }
 ```
+
+## Timeouts and retries
+
+Every REST cmdlet takes `-RequestTimeout` (seconds, 1–300): how long the server waits for the trading platform before it answers. It is sent as the `X-Request-Timeout` header. Set a default for a whole session with `Connect-MyWebApi -RequestTimeout`; a cmdlet's own value wins. Without either, the server applies the operation's default — trade 5 s, read 10 s, change 15 s, history/report 30 s, server maintenance 60 s (`Get-Help <cmdlet> -Parameter RequestTimeout` shows the value for each cmdlet).
+
+The HTTP call itself waits longer than the server: the requested (or default) server timeout plus 30 s, so you get the server's answer rather than an ambiguous client-side abort. An `-HttpTimeoutSeconds` you set on `Connect-MyWebApi` is a hard cap for calls without an explicit `-RequestTimeout`.
+
+When the platform does not answer in time, the cmdlet throws a terminating error. `FullyQualifiedErrorId` is `MyWebApiError,<code>`; `$_.TargetObject` (and `$_.Exception.Data`) carries `Code`, `Outcome` (the `X-Request-Outcome` response header), `Retryable`, `RequestTimeoutApplied`, `ActivityId`, `IdempotencyKey`, and a `Guidance` text that is also `$_.ErrorDetails.RecommendedAction`.
+
+| Code | Outcome | Meaning | What to do |
+|------|---------|---------|------------|
+| `Timeout` | `timeout` | A read did not finish in time. Nothing was changed. | Safe to repeat; allow more time with `-RequestTimeout`. |
+| `OutcomeUnknown` | `unknown` | A trade or change did not finish in time and **may still be applied**. | Never repeat blindly. Repeat with the **same** `-IdempotencyKey` to get the original result, or check the result first. |
+| `OutcomeUnknown` | `in-progress` | A request with the same `Idempotency-Key` is still running; this repeat was not executed. | Repeat later with the same key. |
+| `Busy` | `not-started` | Refused before it reached the platform. Nothing was changed. | Safe to repeat after a short pause. |
+| `Validation` | — | E.g. a timeout outside 1–300 s. | Fix the request. |
+
+If no HTTP response arrives at all within the deadline, the error id is `MyWebApiHttpTimeout` with `TargetObject.Source = 'client'`; for a write its `Outcome` is `unknown` and the same rule applies.
+
+Retries: GET/HEAD/OPTIONS are retried automatically (at most `-MaxGetRetries`, default 2) on transport failures, HTTP 408/425/429/5xx and `Busy`; a `Timeout` is not retried automatically, because the platform is slow and only you know whether to wait longer. **Writes are never retried**, with or without an Idempotency-Key.
+
+```powershell
+$key = [guid]::NewGuid().ToString()
+try {
+    Invoke-MT4TradeTransaction -TradePlatform $tp -Body $order -IdempotencyKey $key -RequestTimeout 10
+} catch {
+    if ($_.TargetObject.Code -eq 'OutcomeUnknown') {
+        Start-Sleep -Seconds 2
+        # Same key: returns the original result instead of placing a second order.
+        Invoke-MT4TradeTransaction -TradePlatform $tp -Body $order -IdempotencyKey $key
+    } else { throw }
+}
+```
+
+Real-time hub calls addressed to a trading platform (and the v2 hub connect) are failed by the server after 60 s; streams are not affected. `-RealtimeTimeoutSeconds` / `-TimeoutSeconds` above that therefore do not extend those calls.
 
 ## Real-time streaming
 

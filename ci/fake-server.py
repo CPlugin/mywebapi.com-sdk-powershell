@@ -73,6 +73,7 @@ class Handler(BaseHTTPRequestHandler):
             "has_authorization": bool(self.headers.get("Authorization")),
             "has_signalr_token": "signalr_token" in query,
             "idempotency_key": self.headers.get("Idempotency-Key"),
+            "request_timeout": self.headers.get("X-Request-Timeout"),
         }
         if body:
             item["body_sha256"] = hashlib.sha256(body).hexdigest()
@@ -93,9 +94,11 @@ class Handler(BaseHTTPRequestHandler):
         self.state.add_request(item)
         return parts, query
 
-    def _send(self, status, payload, content_type="application/json"):
+    def _send(self, status, payload, content_type="application/json", headers=None):
         raw = payload if isinstance(payload, bytes) else json.dumps(payload, separators=(",", ":")).encode("utf-8")
         self.send_response(status)
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Connection", "close")
@@ -157,6 +160,12 @@ class Handler(BaseHTTPRequestHandler):
                     {"transport": "WebSockets", "transferFormats": ["Text", "Binary"]}
                 ],
             })
+        elif "/outcome-unknown/" in path:
+            # A write the trade server did not finish in time: the server answers 200 with the
+            # OutcomeUnknown envelope and says so in X-Request-Outcome.
+            applied = self.headers.get("X-Request-Timeout") or "5"
+            self._send(200, {"error": {"code": "OutcomeUnknown", "message": "The trade server did not answer in time"}, "meta": {"activityId": "activity-ou"}},
+                       headers={"X-Request-Outcome": "unknown", "X-Request-Timeout-Applied": applied})
         elif path.endswith("/AdmBalanceFix"):
             with self.state.lock:
                 self.state.write_count += 1
