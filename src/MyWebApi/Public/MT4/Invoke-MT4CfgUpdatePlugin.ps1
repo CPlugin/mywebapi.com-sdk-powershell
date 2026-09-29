@@ -2,6 +2,9 @@ function Invoke-MT4CfgUpdatePlugin {
     <#
     .SYNOPSIS
         Update plugin config
+    .PARAMETER Body
+        Plugin metadata + parameters to apply
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default: the server's default for this operation.

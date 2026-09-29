@@ -2,6 +2,9 @@ function Invoke-MT4TradeCheckStops {
     <#
     .SYNOPSIS
         Validate order stops
+    .PARAMETER Body
+        Trade transaction shape - same DTO as `TradeTransaction`.
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 5 s (trade operation).

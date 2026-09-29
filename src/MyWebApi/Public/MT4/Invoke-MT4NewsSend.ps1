@@ -2,6 +2,9 @@ function Invoke-MT4NewsSend {
     <#
     .SYNOPSIS
         Send news to terminals
+    .PARAMETER Body
+        News topic + body + category + priority
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default: the server's default for this operation.

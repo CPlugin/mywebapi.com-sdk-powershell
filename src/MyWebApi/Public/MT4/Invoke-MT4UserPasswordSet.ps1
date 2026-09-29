@@ -2,6 +2,9 @@ function Invoke-MT4UserPasswordSet {
     <#
     .SYNOPSIS
         Set account password
+    .PARAMETER Body
+        New password (JSON-encoded string body)
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 15 s (change).

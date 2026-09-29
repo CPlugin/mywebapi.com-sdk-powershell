@@ -122,12 +122,23 @@ for (int idx = 0; idx < collected.Count; idx++)
         bool destructive = tags.Any(x => x.Contains("(destructive)"));
         string summary = op.TryGetProperty("summary", out var s) ? (s.GetString() ?? "") : "";
         var timeout = ReadRequestTimeout(op);
+        var body = ReadRequestBody(op);
 
         var sb = new StringBuilder();
         sb.AppendLine($"function {funcName} {{");
         sb.AppendLine("    <#");
         sb.AppendLine($"    .SYNOPSIS");
         sb.AppendLine($"        {EscapeHelp(string.IsNullOrWhiteSpace(summary) ? funcName : summary)}");
+        if (isMutating)
+        {
+            sb.AppendLine("    .PARAMETER Body");
+            sb.AppendLine(body.Description is { Length: > 0 } bodyDesc
+                ? $"        {EscapeHelp(bodyDesc)}"
+                : "        Request body, sent as JSON.");
+            sb.AppendLine(body.IsObject
+                ? "        Pass a hashtable or [pscustomobject]; it is sent as a JSON object."
+                : "        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).");
+        }
         sb.AppendLine("    .PARAMETER RequestTimeout");
         sb.AppendLine($"        How long the server waits for the trading platform, in seconds ({Num(timeout.Min)}-{Num(timeout.Max)}).");
         sb.AppendLine(timeout.Default is { } defaultSeconds
@@ -188,7 +199,16 @@ for (int idx = 0; idx < collected.Count; idx++)
         }
         if (isPaged) paramLines.Add("        [Parameter()][switch] $All");
         // Body param for mutating ops.
-        if (isMutating) paramLines.Add("        [Parameter()][object] $Body");
+        // * The spec's requestBody decides whether -Body is mandatory; an object schema (e.g. the
+        //   JSON Merge Patch of the PATCH operations) only accepts a hashtable or [pscustomobject],
+        //   so a scalar or an array is refused before anything is sent.
+        if (isMutating)
+        {
+            string bodyAttr = body.Required ? "[Parameter(Mandatory)]" : "[Parameter()]";
+            if (body.IsObject)
+                bodyAttr += "[ValidateScript({ $_ -is [System.Collections.IDictionary] -or $_.PSObject.BaseObject -is [System.Management.Automation.PSCustomObject] }, ErrorMessage = 'Body must be a hashtable or [pscustomobject] (a JSON object).')]";
+            paramLines.Add($"        {bodyAttr}[object] $Body");
+        }
         // Common params.
         paramLines.Add("        [Parameter()][Nullable[guid]] $CacheId");
         paramLines.Add("        [Parameter()][int] $CacheTimeout");
@@ -236,7 +256,10 @@ for (int idx = 0; idx < collected.Count; idx++)
 
         string dir = Path.Combine(outRoot, "Public", platform);
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, funcName + ".ps1"), sb.ToString());
+        // PSScriptAnalyzer (PSUseBOMForUnicodeEncodedFile) wants a BOM on any non-ASCII script.
+        string text = sb.ToString();
+        bool ascii = text.All(ch => ch < 128);
+        File.WriteAllText(Path.Combine(dir, funcName + ".ps1"), text, ascii ? new UTF8Encoding(false) : new UTF8Encoding(true));
         exported.Add(funcName);
         emitted++;
     }
@@ -249,7 +272,38 @@ Console.WriteLine($"Generated {emitted} cmdlets.");
 if (warnings > 0) Console.WriteLine($"({warnings} warning(s) -- see stderr)");
 
 static string Pascal(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];
-static string EscapeHelp(string s) => s.Replace("#>", "# >");
+// Help text goes into comment-based help: keep "#>" from closing the block, and fold typographic
+// punctuation to ASCII so generated files stay plain ASCII (no BOM needed, readable in any console).
+static string EscapeHelp(string s)
+{
+    s = s.Replace("#>", "# >")
+         .Replace('\u2014', '-').Replace('\u2013', '-')
+         .Replace('\u2018', '\'').Replace('\u2019', '\'')
+         .Replace('\u201C', '"').Replace('\u201D', '"')
+         .Replace("\u2026", "...");
+    return s;
+}
+// Reads the operation's requestBody: whether it is required, its description, and whether its
+// JSON schema is an object (from any JSON media type, application/json preferred).
+static (bool Required, bool IsObject, string? Description) ReadRequestBody(JsonElement op)
+{
+    if (!op.TryGetProperty("requestBody", out var rb) || rb.ValueKind != JsonValueKind.Object) return (false, false, null);
+    bool required = rb.TryGetProperty("required", out var r) && r.ValueKind == JsonValueKind.True;
+    string? description = rb.TryGetProperty("description", out var d) ? d.GetString() : null;
+    bool isObject = false;
+    if (rb.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Object)
+    {
+        var media = content.EnumerateObject()
+            .Where(m => m.Name.Contains("json", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(m => m.Name == "application/json" ? 0 : 1)
+            .FirstOrDefault();
+        if (media.Value.ValueKind == JsonValueKind.Object
+            && media.Value.TryGetProperty("schema", out var schema) && schema.ValueKind == JsonValueKind.Object)
+            isObject = schema.TryGetProperty("type", out var t) && t.GetString() == "object";
+    }
+    return (required, isObject, description);
+}
+
 static string Num(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
 
 // Reads the X-Request-Timeout header parameter the server documents on trade-platform operations:

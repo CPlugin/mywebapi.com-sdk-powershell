@@ -2,6 +2,9 @@ function Invoke-MT4TradesSyncStart {
     <#
     .SYNOPSIS
         Start trade-records sync
+    .PARAMETER Body
+        Request body, sent as JSON.
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 60 s (server maintenance).

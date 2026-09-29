@@ -2,6 +2,9 @@ function Update-MT5SymbolRecord {
     <#
     .SYNOPSIS
         Partially update a symbol
+    .PARAMETER Body
+        JSON Merge Patch: an object with only the fields to change.
+        Pass a hashtable or [pscustomobject]; it is sent as a JSON object.
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 15 s (change).
@@ -13,7 +16,7 @@ function Update-MT5SymbolRecord {
         [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
         [Parameter(Mandatory)][string] $Symbol,
-        [Parameter()][object] $Body,
+        [Parameter(Mandatory)][ValidateScript({ $_ -is [System.Collections.IDictionary] -or $_.PSObject.BaseObject -is [System.Management.Automation.PSCustomObject] }, ErrorMessage = 'Body must be a hashtable or [pscustomobject] (a JSON object).')][object] $Body,
         [Parameter()][Nullable[guid]] $CacheId,
         [Parameter()][int] $CacheTimeout,
         [Parameter()][string] $IdempotencyKey,

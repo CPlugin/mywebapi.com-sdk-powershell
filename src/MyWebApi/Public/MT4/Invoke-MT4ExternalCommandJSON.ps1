@@ -2,6 +2,9 @@ function Invoke-MT4ExternalCommandJSON {
     <#
     .SYNOPSIS
         Send plugin command (JSON)
+    .PARAMETER Body
+        The command as JSON, passed to the server plugin verbatim.
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 60 s (server maintenance).
@@ -12,7 +15,7 @@ function Invoke-MT4ExternalCommandJSON {
     param(
         [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
-        [Parameter()][object] $Body,
+        [Parameter(Mandatory)][object] $Body,
         [Parameter()][Nullable[guid]] $CacheId,
         [Parameter()][int] $CacheTimeout,
         [Parameter()][string] $IdempotencyKey,

@@ -2,6 +2,9 @@ function Invoke-MT4BackupRestoreUsers {
     <#
     .SYNOPSIS
         Restore users from backup
+    .PARAMETER Body
+        Array of users to restore (1..10000 records)
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 60 s (server maintenance).

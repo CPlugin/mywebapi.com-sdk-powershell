@@ -99,6 +99,11 @@ try {
     if ($outcomeError.TargetObject.Outcome -ne 'unknown' -or $outcomeError.TargetObject.Retryable) { throw 'OutcomeUnknown error lacks outcome details.' }
     if (@((State $baseA).requests | Where-Object path -like '*outcome-unknown*').Count -ne 1) { throw 'An OutcomeUnknown write was sent more than once.' }
 
+    # PATCH cmdlets send the merge-patch object as the JSON body, once.
+    Update-MT4UserRecord -Connection $a -TradePlatform 'patch-probe' -Login 42 -Body @{ leverage = 200 } -Confirm:$false | Out-Null
+    $patches = @((State $baseA).requests | Where-Object { $_.method -eq 'PATCH' -and $_.path -like '*patch-probe/UserRecord/42' })
+    if ($patches.Count -ne 1 -or $patches[0].body.leverage -ne 200) { throw 'PATCH merge-patch body was not sent as a JSON object.' }
+
     # Disconnect cancels the session source and prevents subsequent work.
     Disconnect-MyWebApi -Connection $b
     if (-not $b.CancellationSource.IsCancellationRequested) { throw 'Disconnect did not cancel the session token.' }
@@ -118,7 +123,7 @@ try {
     if (-not $faultSeen) { throw 'Background realtime fault was not propagated to Receive-MT4Realtime.' }
     try { Disconnect-MT4Realtime -Connection $rt -ErrorAction Stop } catch { }
     Disconnect-MyWebApi -Connection $a
-    [pscustomobject]@{ status = 'ok'; exports = $exports.Count; package = [bool]$PackagePath; contexts = 'independent'; oauth_cross_origin_secret_sent = $false; safe_get_attempts = 3; request_timeout = 'header+outcome'; realtime = 'status+tick+fault'; cancellation = $true } | ConvertTo-Json -Compress
+    [pscustomobject]@{ status = 'ok'; exports = $exports.Count; package = [bool]$PackagePath; contexts = 'independent'; oauth_cross_origin_secret_sent = $false; safe_get_attempts = 3; request_timeout = 'header+outcome'; patch_body = $true; realtime = 'status+tick+fault'; cancellation = $true } | ConvertTo-Json -Compress
 }
 finally {
     foreach ($p in $servers) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }

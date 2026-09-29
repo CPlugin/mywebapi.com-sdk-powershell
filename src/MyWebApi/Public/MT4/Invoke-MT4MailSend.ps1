@@ -2,6 +2,9 @@ function Invoke-MT4MailSend {
     <#
     .SYNOPSIS
         Send mail to accounts
+    .PARAMETER Body
+        Mail content + recipient logins
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default: the server's default for this operation.
