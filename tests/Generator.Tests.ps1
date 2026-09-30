@@ -29,4 +29,22 @@ Describe 'Generated cmdlets' {
     It 'suffixes a reserved-name query param (confirm) with Query to avoid colliding with -Confirm' {
         Get-Content "$pub/MT4/Invoke-MT4SrvRestart.ps1" -Raw | Should -Match '\[switch\] \$ConfirmQuery\b'
     }
+    It 'gives every generated cmdlet a validated -RequestTimeout' {
+        $missing = Get-ChildItem "$pub/MT4","$pub/MT5" -Filter *.ps1 -Recurse | Where-Object {
+            (Get-Content $_.FullName -Raw) -notmatch '\[ValidateRange\(1, 300\)\]\[double\] \$RequestTimeout\b'
+        }
+        $missing | Should -BeNullOrEmpty
+    }
+    It 'passes the documented server default of a trade operation' {
+        Get-Content "$pub/MT4/Invoke-MT4TradeTransaction.ps1" -Raw | Should -Match 'DefaultRequestTimeout = 5\b'
+    }
+    It 'passes the documented server default of a history operation' {
+        Get-Content "$pub/MT4/Get-MT4TradesUserHistory.ps1" -Raw | Should -Match 'DefaultRequestTimeout = 30\b'
+    }
+    It 'documents the timeout outcome of a report sent with POST as safe to repeat' {
+        $reportPost = Get-ChildItem "$pub/MT4","$pub/MT5" -Filter 'Invoke-*.ps1' -Recurse |
+            Where-Object { (Get-Content $_.FullName -Raw) -match '\(history or report\)' } | Select-Object -First 1
+        $reportPost | Should -Not -BeNullOrEmpty
+        Get-Content $reportPost.FullName -Raw | Should -Match 'error code is Timeout'
+    }
 }

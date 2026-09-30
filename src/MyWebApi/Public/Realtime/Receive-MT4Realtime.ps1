@@ -3,18 +3,28 @@ function Receive-MT4Realtime {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][pscustomobject] $Connection,
-        [int] $TimeoutSeconds = 0   # 0 = block indefinitely per item
+        [ValidateRange(1, 3600)][int] $TimeoutSeconds = 30
     )
-    $timeoutMs = if ($TimeoutSeconds -gt 0) { $TimeoutSeconds * 1000 } else { -1 }
+    $timeoutMs = $TimeoutSeconds * 1000
     while ($true) {
+        if ($Connection.Sink.HasFault) {
+            throw "Realtime connection fault: $($Connection.Sink.Fault.Message)"
+        }
         $item = $null
-        if ($Connection.Sink.TryTake([ref]$item, $timeoutMs)) {
-            [pscustomobject]@{
-                Method  = $item.Method
-                Payload = ($item.Json | ConvertFrom-Json -Depth 20)
-            }
-        } elseif ($TimeoutSeconds -gt 0) {
-            break   # timed out with nothing to yield
+        try {
+            $received = $Connection.Sink.TryTake([ref]$item, $timeoutMs)
+        } catch {
+            if ($Connection.Sink.HasFault) { throw "Realtime connection fault: $($Connection.Sink.Fault.Message)" }
+            throw
+        }
+        if (-not $received) {
+            if ($Connection.Sink.HasFault) { throw "Realtime connection fault: $($Connection.Sink.Fault.Message)" }
+            break
+        }
+        if ($item.Error) { throw "Realtime connection fault: $($item.Error.Message)" }
+        [pscustomobject]@{
+            Method  = $item.Method
+            Payload = ($item.Json | ConvertFrom-Json -Depth 20)
         }
     }
 }

@@ -7,15 +7,16 @@ Set-StrictMode -Version Latest
 #   lib/ is populated by scripts/restore-lib.sh; absent during a bare REST-only import.
 $libPath = Join-Path $PSScriptRoot 'lib'
 if (Test-Path $libPath) {
-    foreach ($dll in Get-ChildItem -Path $libPath -Filter '*.dll' -ErrorAction SilentlyContinue) {
+    $assemblyErrors = [System.Collections.Generic.List[string]]::new()
+    foreach ($dll in Get-ChildItem -Path $libPath -Filter '*.dll' -ErrorAction Stop) {
         try {
             Add-Type -Path $dll.FullName -ErrorAction Stop
         } catch {
-            # * Non-fatal: the assembly may already be loaded, or incompatible with the
-            #   current platform (e.g. a Windows-only dependency under a non-Windows host).
-            #   Realtime cmdlets will surface a clear error later if a required type is missing.
-            Write-Verbose "Skipping assembly '$($dll.Name)': $($_.Exception.Message)"
+            $assemblyErrors.Add(("{0}: {1}" -f $dll.Name, $_.Exception.Message))
         }
+    }
+    if ($assemblyErrors.Count -gt 0) {
+        throw ("MyWebApi real-time assemblies are incompatible with PowerShell 7.4/.NET 8: {0}" -f ($assemblyErrors -join '; '))
     }
 }
 

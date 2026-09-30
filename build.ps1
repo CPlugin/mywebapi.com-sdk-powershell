@@ -3,10 +3,11 @@
 param([switch] $SkipLib)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+$PSNativeCommandUseErrorActionPreference = $true
 
 if (-not $SkipLib) { & "$root/scripts/restore-lib.sh" }
 & "$root/scripts/generate.sh"
-pwsh -NoProfile -File "$root/scripts/update-manifest-exports.ps1"
+pwsh -NoProfile -NonInteractive -File "$root/scripts/update-manifest-exports.ps1"
 
 Write-Host 'Validating manifest...' -ForegroundColor Cyan
 Test-ModuleManifest "$root/src/MyWebApi/MyWebApi.psd1" | Out-Null
@@ -21,4 +22,5 @@ $cfg.Run.Path = "$root/tests"
 $cfg.Run.PassThru = $true
 $cfg.Output.Verbosity = 'Detailed'
 $result = Invoke-Pester -Configuration $cfg
+if ($null -eq $result -or $result.TotalCount -lt 1) { throw 'Pester discovered zero tests.' }
 if ($result.FailedCount -gt 0) { throw "$($result.FailedCount) Pester test(s) failed." }

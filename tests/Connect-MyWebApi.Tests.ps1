@@ -5,10 +5,10 @@ BeforeAll {
 Describe 'Connect-MyWebApi' {
     It 'performs OIDC discovery then client_credentials and stores a token' {
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod -ParameterFilter { $Uri -like '*/.well-known/openid-configuration' } -MockWith {
+            Mock Invoke-MyWebApiHttpJson -ParameterFilter { $Uri -like '*/.well-known/openid-configuration' } -MockWith {
                 [pscustomobject]@{ token_endpoint = 'https://id.example/connect/token' }
             }
-            Mock Invoke-RestMethod -ParameterFilter { $Uri -eq 'https://id.example/connect/token' } -MockWith {
+            Mock Invoke-MyWebApiHttpJson -ParameterFilter { $Uri -eq 'https://id.example/connect/token' } -MockWith {
                 [pscustomobject]@{ access_token = 'tok-123'; expires_in = 3600; token_type = 'Bearer' }
             }
 
@@ -25,16 +25,16 @@ Describe 'Connect-MyWebApi' {
 
     It 'accepts a pre-obtained access token without calling the token endpoint' {
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod {}
+            Mock Invoke-MyWebApiHttpJson {}
             Connect-MyWebApi -BaseUrl 'https://api.example' -AccessToken 'preset-token'
             $script:MyWebApiContext.AccessToken | Should -Be 'preset-token'
-            Should -Invoke Invoke-RestMethod -Times 0
+            Should -Invoke Invoke-MyWebApiHttpJson -Times 0
         }
     }
 
     It 'resolves the Staging environment preset' {
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod {}
+            Mock Invoke-MyWebApiHttpJson {}
             Connect-MyWebApi -Environment Staging -AccessToken 't'
             $script:MyWebApiContext.BaseUrl   | Should -Be 'https://pre.mywebapi.com'
             $script:MyWebApiContext.Authority | Should -Be 'https://pre.auth.cplugin.net'
@@ -43,7 +43,7 @@ Describe 'Connect-MyWebApi' {
 
     It 'resolves the Production environment preset' {
         InModuleScope MyWebApi {
-            Mock Invoke-RestMethod {}
+            Mock Invoke-MyWebApiHttpJson {}
             Connect-MyWebApi -Environment Production -AccessToken 't'
             $script:MyWebApiContext.BaseUrl   | Should -Be 'https://cloud.mywebapi.com'
             $script:MyWebApiContext.Authority | Should -Be 'https://auth.cplugin.net'

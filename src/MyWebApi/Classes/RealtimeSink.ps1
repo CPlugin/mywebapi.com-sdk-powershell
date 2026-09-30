@@ -1,15 +1,6 @@
-# * SignalR .On handlers fire on arbitrary threads where a PowerShell ScriptBlock has
-#   no runspace. So the bridge is a COMPILED delegate that only enqueues into a
-#   thread-safe BlockingCollection; the PowerShell Receive-* cmdlets drain it. This is
-#   the single trick that makes SignalR usable from PowerShell.
+# SignalR callbacks run on arbitrary threads without a PowerShell runspace. This compiled
+# bridge only queues immutable payloads; Receive-* remains the single PowerShell consumer.
 if (-not ('MyWebApi.RealtimeSink' -as [type])) {
-    # * The real-time layer is OPTIONAL: a bare REST-only import (no scripts/restore-lib.sh
-    #   run, lib/ empty or absent) must still succeed. Compiling this type unconditionally
-    #   would make Add-Type throw FileNotFoundException the moment the SignalR client DLLs
-    #   are missing, which would fail the WHOLE module import -- not just realtime cmdlets.
-    #   So: check the DLLs exist on disk first, and silently skip compilation if not. Callers
-    #   that actually need realtime (Open-MyWebApiRealtimeConnection) check for the type's
-    #   presence themselves and throw a friendly error instead of a cryptic "type not found".
     $libDir = Join-Path $PSScriptRoot '..' 'lib'
     $signalRRefs = @(
         (Join-Path $libDir 'Microsoft.AspNetCore.SignalR.Client.Core.dll'),
@@ -21,30 +12,13 @@ if (-not ('MyWebApi.RealtimeSink' -as [type])) {
     }
 
     if ($signalRRefsPresent) {
-    # * Add-Type's default reference set (a fixed curated list, not "everything currently
-    #   loaded") does not include System.Collections.Concurrent / System.Text.Json, so the C#
-    #   below fails with CS0234/CS0246 unless we pass them explicitly. (Task / TimeSpan / object
-    #   etc. resolve fine without extra refs -- on .NET Core those live inside
-    #   System.Private.CoreLib, which Add-Type always references implicitly.)
-    #   Pass these two by SIMPLE NAME, not by full file path: they are already loaded in the
-    #   pwsh process (forced above via [void][Type]), so Add-Type resolves the name against the
-    #   already-loaded assembly. Passing the resolved -Location path instead was tried and
-    #   broke compilation with CS0012 "Object is not referenced" on every basic type -- passing
-    #   an already-implicitly-referenced framework assembly's file path a second time makes
-    #   Roslyn stop recognizing the implicit corlib reference. Simple names avoid that entirely.
-    [void][System.Collections.Concurrent.BlockingCollection[object]]
-    [void][System.Text.Json.JsonElement]
-    $frameworkRefs = @(
-        'System.Collections.Concurrent',
-        'System.Text.Json'
-    )
-    # * try/catch + nowarn:1701/1702 -- the bundled SignalR client is built for net8; on a pwsh
-    #   whose runtime System.* identity differs (e.g. .NET 10) Roslyn reports CS1701/CS1702
-    #   "assuming assembly reference matches" and Add-Type surfaces it as a compile failure.
-    #   Suppress those version-mismatch diagnostics, and if compilation still fails, degrade
-    #   gracefully (REST keeps working; Open-MyWebApiRealtimeConnection throws a clear error).
-    try {
-    Add-Type -CompilerOptions '-nowarn:1701,1702' -ReferencedAssemblies ($frameworkRefs + $signalRRefs) -TypeDefinition @'
+        [void][System.Collections.Concurrent.BlockingCollection[object]]
+        [void][System.Text.Json.JsonElement]
+        [void][System.Threading.Interlocked]
+        [void][System.Threading.Volatile]
+        $frameworkRefs = @('System.Collections.Concurrent', 'System.Text.Json', 'System.Threading', 'System.Runtime')
+        try {
+            Add-Type -CompilerOptions '-nowarn:1701,1702' -ReferencedAssemblies ($frameworkRefs + $signalRRefs) -TypeDefinition @'
 using System;
 using System.Collections.Concurrent;
 using System.Text.Json;
@@ -56,55 +30,99 @@ namespace MyWebApi
 {
     public sealed class RealtimeSink : IDisposable
     {
-        private readonly BlockingCollection<object> _queue = new BlockingCollection<object>();
+        private readonly BlockingCollection<object> _queue = new BlockingCollection<object>(1024);
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+        private readonly ConcurrentBag<Task> _streamTasks = new ConcurrentBag<Task>();
+        private Exception _fault;
+        private int _stopped;
+        private int _disposed;
+
         public HubConnection Connection { get; }
+        public Exception Fault => Volatile.Read(ref _fault);
+        public bool HasFault => Fault != null;
 
-        public RealtimeSink(HubConnection connection) { Connection = connection; }
+        public RealtimeSink(HubConnection connection)
+        {
+            Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+            Connection.Closed += error =>
+            {
+                if (error != null && !_cts.IsCancellationRequested) RecordFault(error, "connection closed");
+                return Task.CompletedTask;
+            };
+        }
 
-        // Register a server->client callback (OnConnectionStatus, OnTick): enqueue the raw JSON.
+        private void RecordFault(Exception error, string source)
+        {
+            if (error == null || _cts.IsCancellationRequested) return;
+            Interlocked.CompareExchange(ref _fault, new InvalidOperationException(source + ": " + error.Message, error), null);
+            try { _queue.TryAdd(new PayloadEnvelope { Method = "__connectionFault", Json = "{}", Error = Fault }, 100); }
+            catch (InvalidOperationException) { }
+        }
+
+        private void Enqueue(PayloadEnvelope payload)
+        {
+            try { _queue.TryAdd(payload, 100, _cts.Token); }
+            catch (OperationCanceledException) { }
+            catch (InvalidOperationException) { }
+        }
+
         public void On(string method)
         {
             Connection.On<JsonElement>(method, arg =>
             {
-                try { _queue.Add(new PayloadEnvelope { Method = method, Json = arg.GetRawText() }); }
-                catch { /* queue completed/disposed during shutdown - drop late callback */ }
+                if (_cts.IsCancellationRequested) return;
+                try { Enqueue(new PayloadEnvelope { Method = method, Json = arg.GetRawText() }); }
+                catch (Exception error) { RecordFault(error, "callback " + method); }
             });
         }
 
-        // Consume a server-streaming hub method on a background task, funneling items into the queue.
         public void StartStream(string method)
         {
-            _ = Task.Run(async () =>
+            var task = Task.Run(async () =>
             {
                 try
                 {
                     await foreach (var item in Connection.StreamAsync<JsonElement>(method, _cts.Token))
                     {
-                        try { _queue.Add(new PayloadEnvelope { Method = method, Json = item.GetRawText() }); }
-                        catch { break; }
+                        Enqueue(new PayloadEnvelope { Method = method, Json = item.GetRawText() });
                     }
                 }
-                catch (OperationCanceledException) { /* normal on disconnect */ }
-                catch { /* stream ended / connection closed */ }
-            });
+                catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
+                catch (Exception error) { RecordFault(error, "stream " + method); }
+            }, _cts.Token);
+            _streamTasks.Add(task);
         }
 
-        public bool TryTake(out object item, int timeoutMs) => _queue.TryTake(out item, timeoutMs);
+        public bool TryTake(out object item, int timeoutMs) => _queue.TryTake(out item, timeoutMs, _cts.Token);
 
-        public Task StartAsync() => Connection.StartAsync();
+        public Task StartAsync() => Connection.StartAsync(_cts.Token);
 
-        public async Task StopAsync()
+        public Task StopAsync() => StopAsync(30000);
+
+        public async Task StopAsync(int timeoutMilliseconds)
         {
+            if (Interlocked.Exchange(ref _stopped, 1) == 1) return;
             _cts.Cancel();
-            try { await Connection.StopAsync(); } catch { }
-            try { await Connection.DisposeAsync(); } catch { }
+            Exception failure = null;
+            try { await Connection.StopAsync().WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)); }
+            catch (Exception error) { failure = error; RecordFault(error, "connection stop"); }
+            try
+            {
+                var allStreams = Task.WhenAll(_streamTasks);
+                await allStreams.WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds));
+            }
+            catch (Exception error) { failure ??= error; RecordFault(error, "stream stop"); }
+            try { await Connection.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)); }
+            catch (Exception error) { failure ??= error; RecordFault(error, "connection dispose"); }
             _queue.CompleteAdding();
+            if (failure != null) throw failure;
         }
 
         public void Dispose()
         {
-            try { _cts.Cancel(); } catch { }
+            if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+            _cts.Cancel();
+            _queue.CompleteAdding();
             _cts.Dispose();
             _queue.Dispose();
         }
@@ -114,11 +132,12 @@ namespace MyWebApi
     {
         public string Method { get; set; } = "";
         public string Json { get; set; } = "";
+        public Exception Error { get; set; }
     }
 }
 '@
-    } catch {
-        Write-Verbose "MyWebApi: real-time layer unavailable on this runtime ($($_.Exception.Message))"
-    }
+        } catch {
+            throw "MyWebApi real-time assemblies are incompatible with this PowerShell/.NET runtime: $($_.Exception.Message)"
+        }
     }
 }

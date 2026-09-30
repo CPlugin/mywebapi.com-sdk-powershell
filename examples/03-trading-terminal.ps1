@@ -125,8 +125,21 @@ if (-not $Live) {
     try {
         # * Idempotency-Key is STRONGLY recommended for trade mutations — a
         #   unique key per logical order prevents double-execution on retry.
+        # ! OutcomeUnknown means the order may still be placed: never resend it with a new key.
+        #   Repeating with the SAME key returns the original result once the first request has
+        #   finished (while it still runs, the answer is OutcomeUnknown again with outcome
+        #   'in-progress', and nothing is executed twice).
         $key = [guid]::NewGuid().ToString()
-        $res = Invoke-MT4TradeTransaction -TradePlatform $tp -Body $openBody -IdempotencyKey $key
+        $res = $null
+        for ($attempt = 1; $attempt -le 3 -and $null -eq $res; $attempt++) {
+            try {
+                $res = Invoke-MT4TradeTransaction -TradePlatform $tp -Body $openBody -IdempotencyKey $key -RequestTimeout 10
+            } catch {
+                if ($_.TargetObject.Code -ne 'OutcomeUnknown' -or $attempt -eq 3) { throw }
+                Write-Warning ("Outcome unknown ({0}); asking again with the same Idempotency-Key..." -f $_.TargetObject.Outcome)
+                Start-Sleep -Seconds 2
+            }
+        }
         $ticket = $res.order
         if (-not $ticket) { throw 'Server returned no order ticket after OpenMarket' }
         Write-Host ("Order opened: ticket #{0}" -f $ticket)
