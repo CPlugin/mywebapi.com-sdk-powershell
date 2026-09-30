@@ -129,6 +129,19 @@ Describe 'Request timeouts' {
             }
         }
 
+        It 'handles a sidecar operation like the rest: one -RequestTimeout, the header, its documented default' {
+            InModuleScope MyWebApi {
+                $params = (Get-Command Get-MT4TradesSnapshot).Parameters.Keys
+                @($params | Where-Object { $_ -match 'Timeout' } | Sort-Object) | Should -Be @('CacheTimeout', 'RequestTimeout')
+                Mock Invoke-MyWebApiHttpJson -MockWith { [pscustomobject]@{ data = 1 } }
+                # History operation: server default 30 s, so the HTTP deadline is 60 s, not the 90 s assumed for an undocumented one.
+                Get-MT4TradesSnapshot | Out-Null
+                Should -Invoke Invoke-MyWebApiHttpJson -Times 1 -ParameterFilter { $TimeoutSeconds -eq 60 -and -not $Headers.ContainsKey('X-Request-Timeout') }
+                Get-MT4TradesSnapshot -RequestTimeout 7 | Out-Null
+                Should -Invoke Invoke-MyWebApiHttpJson -Times 1 -ParameterFilter { $Headers['X-Request-Timeout'] -eq '7' -and $TimeoutSeconds -eq 37 }
+            }
+        }
+
         It 'assumes the longest server default for an operation without a documented one' {
             InModuleScope MyWebApi {
                 Mock Invoke-MyWebApiHttpJson -MockWith { [pscustomobject]@{ data = 1 } }

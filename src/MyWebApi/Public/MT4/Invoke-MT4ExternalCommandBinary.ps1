@@ -7,7 +7,7 @@ function Invoke-MT4ExternalCommandBinary {
         Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
-        Default: the server's default for this operation.
+        Default for this operation: 60 s (server maintenance).
         Overrides the session default set with Connect-MyWebApi -RequestTimeout.
         When the platform does not answer in time the error code is OutcomeUnknown: the change may still be applied, so check the result or repeat with the same -IdempotencyKey instead of repeating blindly.
     #>
@@ -22,7 +22,7 @@ function Invoke-MT4ExternalCommandBinary {
         [Parameter()][ValidateRange(1, 300)][double] $RequestTimeout
     )
     if (-not $PSCmdlet.ShouldProcess('MT4/ExternalCommandBinary')) { return }
-    $reqArgs = @{ Method = 'Post'; Path = "/api/v2/MT4/{tradePlatform}/ExternalCommandBinary"; TradePlatform = $TradePlatform; Body = $Body }
+    $reqArgs = @{ Method = 'Post'; Path = "/api/v2/MT4/{tradePlatform}/ExternalCommandBinary"; TradePlatform = $TradePlatform; Body = $Body; DefaultRequestTimeout = 60 }
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }

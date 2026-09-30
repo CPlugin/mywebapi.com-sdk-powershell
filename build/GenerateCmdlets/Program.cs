@@ -308,8 +308,8 @@ static string Num(double v) => v.ToString("0.###", CultureInfo.InvariantCulture)
 
 // Reads the X-Request-Timeout header parameter the server documents on trade-platform operations:
 // accepted range and this operation's default (seconds), plus the operation kind from its
-// description ("... Default for this operation: 5 s (trade operation) ..."). Operations the spec
-// does not annotate (e.g. ones served by a separate host build) still get the parameter with the
+// description ("... Default for this operation: 5 s (trade operation) ..."). The current spec
+// annotates every operation; one it does not annotate still gets the parameter with the
 // server-wide range 1-300 and no known default -- the server applies its own.
 static (double Min, double Max, double? Default, string? Kind) ReadRequestTimeout(JsonElement op)
 {
