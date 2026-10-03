@@ -5,7 +5,7 @@
     Author            = 'CPlugin'
     CompanyName       = 'CPlugin'
     Copyright         = '(c) 2026 CPlugin. MIT License.'
-    Description       = 'PowerShell client for the trading platform management WebAPI (v2): REST + real-time streaming.'
+    Description       = 'PowerShell module for CPlugin WebAPI: REST and real-time (SignalR) cmdlets that work with the MetaTrader 4 and MetaTrader 5 Manager API - accounts, open positions, deposits, trade history, groups, symbols and server configuration for brokers. Product: https://mywebapi.com. Source: https://github.com/CPlugin/mywebapi.com-sdk-powershell. MetaTrader is a trademark of MetaQuotes Ltd.; this module is not affiliated with MetaQuotes.'
     PowerShellVersion = '7.4'
     FunctionsToExport = @(
         'Connect-MT4Realtime',
@@ -197,9 +197,10 @@
     AliasesToExport   = @()
     PrivateData = @{
         PSData = @{
-            Tags         = @('REST', 'API', 'SignalR', 'trading', 'client', 'PSEdition_Core')
+            Tags         = @('MT4', 'MT5', 'MetaTrader', 'MetaTrader4', 'MetaTrader5', 'ManagerAPI', 'MT5ManagerAPI', 'Broker', 'Forex', 'Trading', 'TradingPlatform', 'REST', 'API', 'WebSocket', 'SignalR', 'SDK', 'client', 'PSEdition_Core', 'Windows', 'Linux', 'MacOS')
             LicenseUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell/blob/main/LICENSE'
-            ProjectUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell'
+            # * Product site; the source repository is named in Description and LicenseUri (PSData has no repository field).
+            ProjectUri   = 'https://mywebapi.com'
             ReleaseNotes = '0.3.0: request timeouts. Every REST cmdlet takes -RequestTimeout (1-300 s, sent as X-Request-Timeout) and Connect-MyWebApi -RequestTimeout sets a session default. The HTTP deadline now follows the server timeout plus 30 s. Timeout, OutcomeUnknown and Busy errors carry the X-Request-Outcome value, Retryable flag and guidance on TargetObject, Exception.Data and ErrorDetails.RecommendedAction; a client-side HTTP deadline is reported as MyWebApiHttpTimeout. Busy GETs are retried within MaxGetRetries; writes are never retried. New help topic about_MyWebApi_Timeouts. -Body is mandatory where the API requires a request body (the six PATCH cmdlets and Invoke-MT4ExternalCommandJSON), and the PATCH cmdlets accept only a hashtable or [pscustomobject] (JSON Merge Patch object). Error envelopes without meta no longer fail with a parameter-binding error. 0.2.1: isolated connection objects with default-session compatibility, synchronized OAuth refresh, HTTPS/trusted discovery guards, bounded HTTP/realtime waits, safe GET retries, one-shot writes, and explicit SignalR faults.'
         }
     }
