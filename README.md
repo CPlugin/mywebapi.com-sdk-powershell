@@ -6,7 +6,84 @@
 
 PowerShell 7.4 on .NET 8 client for the MyWebAPI.com trading-platform management API (v2): the full REST surface as idiomatic cmdlets, plus real-time streaming over SignalR.
 
-> **Trademark notice:** third-party trading-platform names and trademarks are the property of their respective owners. This is an independent client library, not affiliated with, endorsed by, or sponsored by any platform vendor.
+The WebAPI works with MetaTrader 4 and MetaTrader 5 servers, so an administrator can script a broker's trade server from PowerShell on Windows, Linux or macOS without installing native platform libraries.
+
+- Product and sign-up: <https://mywebapi.com>
+- API reference: <https://cplugin.com/docs/webapi> · interactive: <https://cloud.mywebapi.com/swagger>
+- Pricing: <https://cplugin.com/docs/pricing-and-terms>
+
+> **Trademarks:** MetaTrader, MT4, MT5 and MetaQuotes are trademarks or registered trademarks of MetaQuotes Ltd. This is an independent client library, not affiliated with, endorsed by, or sponsored by MetaQuotes Ltd. All other trademarks are the property of their respective owners.
+
+## What brokers do with it
+
+Typical back-office tasks, each with the cmdlet that performs it. `$session` comes from `Connect-MyWebApi` and `$tp` is the trade platform id (see [Quickstart](#quickstart)); `$c = @{ Connection = $session; TradePlatform = $tp }` is splatted to keep the lines short.
+
+**List open positions of a group** (MT4 `AdmTradesRequest`, MT5 `PositionByGroup`):
+
+```powershell
+$c = @{ Connection = $session; TradePlatform = $tp }
+Get-MT4AdmTradesRequest @c -Group real-usd -OpenOnly
+Get-MT5PositionByGroup  @c -Mask 'real\*' -All |
+    Format-Table login, symbol, volume, profit
+```
+
+**Stream trades in real time** (SignalR; the MT4 hub streams trades, ticks, account and symbol changes and margin calls):
+
+```powershell
+$rt = Connect-MT4Realtime -Session $session -TradePlatform $tp
+Register-MT4Realtime -Connection $rt -Category Trades
+Receive-MT4Realtime -Connection $rt -TimeoutSeconds 60 |
+    Where-Object Method -eq 'StreamTrades' |
+    ForEach-Object { '{0} #{1} {2} {3}' -f $_.Payload.kind, $_.Payload.order, $_.Payload.login, $_.Payload.symbol }
+```
+
+**Open an account from a CRM** (`UserRecordNew`, then `UserPasswordSet`):
+
+```powershell
+$user = Invoke-MT4UserRecordNew @c -IdempotencyKey $crmRequestId -Body @{
+    login = 0; group = 'real-usd'; name = 'John Smith'; email = 'john@example.com'; leverage = 100 }
+Invoke-MT4UserPasswordSet @c -Login $user.login -Body $newPassword
+```
+
+**Post a deposit or a withdrawal** (`TradeTransaction` balance operation; a negative amount withdraws):
+
+```powershell
+Invoke-MT4TradeTransaction @c -IdempotencyKey $paymentId -Body @{
+    tradeTransactionType = 'BrBalance'; tradeCommand = 'Balance'
+    orderBy = 1001; price = 500; comment = 'Deposit #8812' }
+```
+
+**Move an account to another group or change its leverage** (JSON Merge Patch, MT4 and MT5):
+
+```powershell
+Update-MT4UserRecord @c -Login 1001  -Body @{ group = 'real-vip'; leverage = 200 }
+Update-MT5UserRecord @c -Login 50001 -Body @{ leverage = 200 }
+```
+
+**Read trade history for reports and statements** (`TradesUserHistory`, MT5 `DealByGroup`):
+
+```powershell
+Get-MT4TradesUserHistory @c -Login 1001 -FromTime '2026-09-01T00:00:00Z' -ToTime '2026-10-01T00:00:00Z' |
+    Export-Csv statement-1001.csv
+Get-MT5DealByGroup @c -Mask 'real\*' -All | Export-Csv deals.csv
+```
+
+**Watch margin levels** (cached snapshot of every account; the live stream is `Register-MT4Realtime -Category MarginCall`):
+
+```powershell
+Get-MT4MarginsGet @c |
+    Where-Object { $_.level -gt 0 -and $_.level -lt 100 } |
+    Format-Table login, group, balance, equity, margin, level
+```
+
+**Change symbol settings, for example swaps** (`SymbolConfig` on MT4, `SymbolRecord` on MT5):
+
+```powershell
+Update-MT4SymbolConfig @c -Symbol EURUSD -Body @{ swapLong = -6.1; swapShort = 1.2 }
+Update-MT5SymbolRecord @c -Symbol EURUSD -Body @{ swapLong = -6.1; swapShort = 1.2 }
+```
+
+Every other endpoint (trading groups, server configuration, backups, journal, charts, news, plugins) has its own cmdlet — `Get-Command -Module MyWebApi` lists them; see also the [API reference](https://cplugin.com/docs/webapi).
 
 ## Install
 
