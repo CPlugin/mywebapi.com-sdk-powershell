@@ -6,7 +6,7 @@
 
 PowerShell 7.4 on .NET 8 client for the MyWebAPI.com trading-platform management API (v2): the full REST surface as idiomatic cmdlets, plus real-time streaming over SignalR.
 
-The WebAPI works with MetaTrader 4 and MetaTrader 5 servers through their Manager API, so an administrator can script a broker's trade server from PowerShell on Windows, Linux or macOS without the native Manager API libraries.
+The WebAPI works with MetaTrader 4 and MetaTrader 5 servers, so an administrator can script a broker's trade server from PowerShell on Windows, Linux or macOS without installing native platform libraries.
 
 - Product and sign-up: <https://mywebapi.com>
 - API reference: <https://cplugin.com/docs/webapi> · interactive: <https://cloud.mywebapi.com/swagger>
