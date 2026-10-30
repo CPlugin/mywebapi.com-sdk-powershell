@@ -1,6 +1,6 @@
 @{
     RootModule        = 'MyWebApi.psm1'
-    ModuleVersion     = '0.3.0'
+    ModuleVersion     = '0.3.2'
     GUID              = 'b7e2c1a4-9f3d-4c8e-8a2b-3d5f6e7a8b9c'
     Author            = 'CPlugin'
     CompanyName       = 'CPlugin'
@@ -93,6 +93,7 @@
         'Get-MT4UsersRequest',
         'Get-MT4UsersSnapshot',
         'Get-MT4UsersSyncRead',
+        'Get-MT5ChartRequest',
         'Get-MT5DealByGroup',
         'Get-MT5GroupGet',
         'Get-MT5ManagerCurrent',
@@ -100,6 +101,7 @@
         'Get-MT5PositionByGroup',
         'Get-MT5ServerTime',
         'Get-MT5SymbolGet',
+        'Get-MT5TicksHistory',
         'Get-MT5TimeGet',
         'Get-MT5UserGet',
         'Get-MyWebApiTradePlatform',
@@ -185,6 +187,8 @@
         'Receive-MT5Realtime',
         'Register-MT4Realtime',
         'Register-MT5Realtime',
+        'Unregister-MT4Realtime',
+        'Unregister-MT5Realtime',
         'Update-MT4GroupRecord',
         'Update-MT4SymbolConfig',
         'Update-MT4UserRecord',
@@ -200,7 +204,7 @@
             Tags         = @('REST', 'API', 'SignalR', 'trading', 'client', 'PSEdition_Core')
             LicenseUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell'
-            ReleaseNotes = '0.3.0: request timeouts. Every REST cmdlet takes -RequestTimeout (1-300 s, sent as X-Request-Timeout) and Connect-MyWebApi -RequestTimeout sets a session default. The HTTP deadline now follows the server timeout plus 30 s. Timeout, OutcomeUnknown and Busy errors carry the X-Request-Outcome value, Retryable flag and guidance on TargetObject, Exception.Data and ErrorDetails.RecommendedAction; a client-side HTTP deadline is reported as MyWebApiHttpTimeout. Busy GETs are retried within MaxGetRetries; writes are never retried. New help topic about_MyWebApi_Timeouts. -Body is mandatory where the API requires a request body (the six PATCH cmdlets and Invoke-MT4ExternalCommandJSON), and the PATCH cmdlets accept only a hashtable or [pscustomobject] (JSON Merge Patch object). Error envelopes without meta no longer fail with a parameter-binding error. 0.2.1: isolated connection objects with default-session compatibility, synchronized OAuth refresh, HTTPS/trusted discovery guards, bounded HTTP/realtime waits, safe GET retries, one-shot writes, and explicit SignalR faults.'
+            ReleaseNotes = '0.3.2: Batched ticks on the MT4 and MT5 v2 hubs. Register-MT5Realtime and Register-MT4Realtime take -Category TicksBatch with -Symbol and optional -IntervalMs (20..60000, default 200) and -MaxBatchSize (1..10000, default 200); the server then sends the ticks of that symbol as one OnTicksBatch payload from Receive-MT4Realtime/Receive-MT5Realtime (symbol plus a ticks array) instead of one OnTick per tick. Unregister-MT5Realtime and the new Unregister-MT4Realtime remove a subscription with -Category Ticks or TicksBatch and keep the connection open. Existing subscriptions and all other cmdlets are unchanged.'
         }
     }
 }

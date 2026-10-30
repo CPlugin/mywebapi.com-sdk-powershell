@@ -1,9 +1,9 @@
 function Invoke-MT4NotificationsSend {
     <#
     .SYNOPSIS
-        Invoke-MT4NotificationsSend
+        Send push notification
     .PARAMETER Body
-        Request body, sent as JSON.
+        Recipient logins and the notification message
         Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).

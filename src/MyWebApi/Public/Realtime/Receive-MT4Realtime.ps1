@@ -1,5 +1,9 @@
 function Receive-MT4Realtime {
-    <# .SYNOPSIS Streams real-time payloads from an MT4 connection to the pipeline. #>
+    <# .SYNOPSIS Streams real-time payloads from an MT4 connection to the pipeline.
+    .DESCRIPTION
+        Returns payloads made with Register-MT4Realtime as objects with Method and Payload
+        properties; batched ticks arrive as Method OnTicksBatch with a payload of symbol and
+        ticks. #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][pscustomobject] $Connection,
