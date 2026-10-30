@@ -204,10 +204,27 @@ Receive-MT4Realtime -Connection $rt -TimeoutSeconds 30 |
     Where-Object Method -eq 'OnTick' |
     ForEach-Object { '{0}  bid={1} ask={2}' -f $_.Payload.symbol, $_.Payload.bid, $_.Payload.ask }
 
+Unregister-MT4Realtime -Connection $rt -Symbol EURUSD
 Disconnect-MT4Realtime -Connection $rt
 ```
 
-MT5 exposes the same shape via `Connect-MT5Realtime` / `Register-MT5Realtime` / `Receive-MT5Realtime` / `Disconnect-MT5Realtime`.
+MT5 exposes the same shape via `Connect-MT5Realtime` / `Register-MT5Realtime` / `Receive-MT5Realtime` / `Unregister-MT5Realtime` / `Disconnect-MT5Realtime`; `Register-MT5Realtime -Category Ticks -Symbol EURUSD` starts the MT5 tick feed.
+
+Both hubs can batch ticks instead of pushing one event per tick. `-IntervalMs` is the longest a tick waits for its batch, `-MaxBatchSize` the maximum ticks in one payload:
+
+```powershell
+$rt = Connect-MT5Realtime -Session $session -TradePlatform $tp
+Register-MT5Realtime -Connection $rt -Category TicksBatch -Symbol EURUSD -IntervalMs 500 -MaxBatchSize 100
+
+Receive-MT5Realtime -Connection $rt -TimeoutSeconds 30 |
+    Where-Object Method -eq 'OnTicksBatch' |
+    ForEach-Object { '{0}  {1} ticks, last bid={2}' -f $_.Payload.symbol, $_.Payload.ticks.Count, $_.Payload.ticks[-1].bid }
+
+Unregister-MT5Realtime -Connection $rt -Category TicksBatch -Symbol EURUSD
+Disconnect-MT5Realtime -Connection $rt
+```
+
+While a symbol is subscribed to batches its per-tick `OnTick` events are not delivered; the two subscriptions are separate, so both can exist for one symbol. `Unregister-*Realtime -Category Ticks` (default) or `TicksBatch` stops one of them and keeps the connection open.
 
 ## Examples
 
