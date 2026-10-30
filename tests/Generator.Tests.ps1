@@ -2,8 +2,12 @@ Describe 'Generated cmdlets' {
     BeforeAll {
         $pub = "$PSScriptRoot/../src/MyWebApi/Public"
     }
-    It 'emits 172 cmdlet files' {
-        (Get-ChildItem "$pub/MT4","$pub/MT5" -Filter *.ps1 -Recurse).Count | Should -Be 172
+    It 'emits 174 cmdlet files' {
+        (Get-ChildItem "$pub/MT4","$pub/MT5" -Filter *.ps1 -Recurse).Count | Should -Be 174
+    }
+    It 'emits the MT5 history cmdlets' {
+        Test-Path "$pub/MT5/Get-MT5ChartRequest.ps1" | Should -BeTrue
+        Test-Path "$pub/MT5/Get-MT5TicksHistory.ps1" | Should -BeTrue
     }
     It 'names the cached user lookup Get-MT4UserRecordGet' {
         Test-Path "$pub/MT4/Get-MT4UserRecordGet.ps1" | Should -BeTrue

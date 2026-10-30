@@ -1,6 +1,6 @@
 @{
     RootModule        = 'MyWebApi.psm1'
-    ModuleVersion     = '0.3.3'
+    ModuleVersion     = '0.3.4'
     GUID              = 'b7e2c1a4-9f3d-4c8e-8a2b-3d5f6e7a8b9c'
     Author            = 'CPlugin'
     CompanyName       = 'CPlugin'
@@ -93,6 +93,7 @@
         'Get-MT4UsersRequest',
         'Get-MT4UsersSnapshot',
         'Get-MT4UsersSyncRead',
+        'Get-MT5ChartRequest',
         'Get-MT5DealByGroup',
         'Get-MT5GroupGet',
         'Get-MT5ManagerCurrent',
@@ -100,6 +101,7 @@
         'Get-MT5PositionByGroup',
         'Get-MT5ServerTime',
         'Get-MT5SymbolGet',
+        'Get-MT5TicksHistory',
         'Get-MT5TimeGet',
         'Get-MT5UserGet',
         'Get-MyWebApiTradePlatform',
@@ -185,6 +187,8 @@
         'Receive-MT5Realtime',
         'Register-MT4Realtime',
         'Register-MT5Realtime',
+        'Unregister-MT4Realtime',
+        'Unregister-MT5Realtime',
         'Update-MT4GroupRecord',
         'Update-MT4SymbolConfig',
         'Update-MT4UserRecord',
@@ -201,7 +205,7 @@
             LicenseUri   = 'https://github.com/CPlugin/mywebapi.com-sdk-powershell/blob/main/LICENSE'
             # * Product site; the source repository is named in Description and LicenseUri (PSData has no repository field).
             ProjectUri   = 'https://mywebapi.com'
-            ReleaseNotes = '0.3.3: built from the WebAPI v2 specification of 05.10.2026; the API texts no longer name the server''s internal library. No cmdlet changes. 0.3.1: built from the WebAPI v2 specification of 03.10.2026. The MT4 trade-transaction fields (tradeTransactionType, tradeCommand, tradeRequestFlags) and the Invoke-MT4UsersGroupOp command field are documented with the values the server accepts; an unknown value is now refused with error code Validation ($_.TargetObject.Code) instead of silently becoming the default - this is server behaviour and applies to every module version. ProjectUri is https://mywebapi.com. No cmdlet changes. 0.3.0: request timeouts. Every REST cmdlet takes -RequestTimeout (1-300 s, sent as X-Request-Timeout) and Connect-MyWebApi -RequestTimeout sets a session default. The HTTP deadline now follows the server timeout plus 30 s. Timeout, OutcomeUnknown and Busy errors carry the X-Request-Outcome value, Retryable flag and guidance on TargetObject, Exception.Data and ErrorDetails.RecommendedAction; a client-side HTTP deadline is reported as MyWebApiHttpTimeout. Busy GETs are retried within MaxGetRetries; writes are never retried. New help topic about_MyWebApi_Timeouts. -Body is mandatory where the API requires a request body (the six PATCH cmdlets and Invoke-MT4ExternalCommandJSON), and the PATCH cmdlets accept only a hashtable or [pscustomobject] (JSON Merge Patch object). Error envelopes without meta no longer fail with a parameter-binding error. 0.2.1: isolated connection objects with default-session compatibility, synchronized OAuth refresh, HTTPS/trusted discovery guards, bounded HTTP/realtime waits, safe GET retries, one-shot writes, and explicit SignalR faults.'
+            ReleaseNotes = '0.3.4: MT5 market history and real-time ticks. Get-MT5ChartRequest returns OHLC bars for a symbol (period M1, M5, M15, M30, H1, H4 or D1; optional -From/-To by the trade server''s trading time; -Limit 0 means the whole window) and Get-MT5TicksHistory returns historical ticks of a symbol, both with total and truncated counts. Register-MT5Realtime accepts -Category Ticks with -Symbol: the hub pushes each tick as an OnTick event. On both hubs -Category TicksBatch with -Symbol and optional -IntervalMs (20..60000, default 200) and -MaxBatchSize (1..10000, default 200) makes the server send the ticks of that symbol as one OnTicksBatch payload (symbol plus a ticks array) instead of one OnTick per tick. Unregister-MT4Realtime and the new Unregister-MT5Realtime remove a subscription with -Category Ticks or TicksBatch and keep the connection open. Existing cmdlets and subscriptions are unchanged. 0.3.3: built from the WebAPI v2 specification of 05.10.2026; the API texts no longer name the server''s internal library. No cmdlet changes. 0.3.1: built from the WebAPI v2 specification of 03.10.2026. The MT4 trade-transaction fields (tradeTransactionType, tradeCommand, tradeRequestFlags) and the Invoke-MT4UsersGroupOp command field are documented with the values the server accepts; an unknown value is now refused with error code Validation ($_.TargetObject.Code) instead of silently becoming the default - this is server behaviour and applies to every module version. ProjectUri is https://mywebapi.com. No cmdlet changes. 0.3.0: request timeouts. Every REST cmdlet takes -RequestTimeout (1-300 s, sent as X-Request-Timeout) and Connect-MyWebApi -RequestTimeout sets a session default. The HTTP deadline now follows the server timeout plus 30 s. Timeout, OutcomeUnknown and Busy errors carry the X-Request-Outcome value, Retryable flag and guidance on TargetObject, Exception.Data and ErrorDetails.RecommendedAction; a client-side HTTP deadline is reported as MyWebApiHttpTimeout. Busy GETs are retried within MaxGetRetries; writes are never retried. New help topic about_MyWebApi_Timeouts. -Body is mandatory where the API requires a request body (the six PATCH cmdlets and Invoke-MT4ExternalCommandJSON), and the PATCH cmdlets accept only a hashtable or [pscustomobject] (JSON Merge Patch object). Error envelopes without meta no longer fail with a parameter-binding error. 0.2.1: isolated connection objects with default-session compatibility, synchronized OAuth refresh, HTTPS/trusted discovery guards, bounded HTTP/realtime waits, safe GET retries, one-shot writes, and explicit SignalR faults.'
         }
     }
 }

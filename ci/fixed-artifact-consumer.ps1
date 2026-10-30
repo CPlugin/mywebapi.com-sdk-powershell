@@ -1,4 +1,4 @@
-# Bounded consumer smoke for the fixed MyWebApi 0.3.3 artifact or nupkg.
+# Bounded consumer smoke for the fixed MyWebApi 0.3.4 artifact or nupkg.
 [CmdletBinding()]
 param(
     [Parameter()][string] $ArtifactDir,
@@ -43,11 +43,13 @@ try {
     $manifestPath = Join-Path $ArtifactDir 'MyWebApi.psd1'
     if (-not (Test-Path $manifestPath)) { throw "MyWebApi.psd1 missing from artifact: $ArtifactDir" }
     $manifest = Test-ModuleManifest -Path $manifestPath
-    if ($manifest.Version -ne [version]'0.3.3') { throw "Expected module 0.3.3, got $($manifest.Version)." }
+    if ($manifest.Version -ne [version]'0.3.4') { throw "Expected module 0.3.4, got $($manifest.Version)." }
     Import-Module $manifestPath -Force
     $moduleImported = $true
     $exports = @(Get-Command -Module MyWebApi)
-    if ($exports.Count -lt 183) { throw "Expected full export surface, got $($exports.Count)." }
+    if ($exports.Count -lt 187) { throw "Expected full export surface, got $($exports.Count)." }
+    if (-not (Get-Command Register-MT5Realtime).Parameters.ContainsKey('MaxBatchSize')) { throw 'Batched-tick parameters missing from Register-MT5Realtime.' }
+    if (-not (Get-Command Unregister-MT4Realtime).Parameters.ContainsKey('Category')) { throw 'Unregister-MT4Realtime missing from the artifact.' }
     if (-not (Get-Command Get-MT4AdmBalanceCheck).Parameters.ContainsKey('Connection')) { throw 'Generated connection parameter missing.' }
     if (-not (Get-Command Invoke-MT4AdmBalanceFix).Parameters.ContainsKey('Confirm')) { throw 'SupportsShouldProcess missing from write cmdlet.' }
     if (-not (Get-Command Connect-MT4Realtime).Parameters.ContainsKey('Session')) { throw 'Realtime session parameter missing.' }
