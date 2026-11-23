@@ -6,8 +6,10 @@ function Connect-MT4Realtime {
         Opens a SignalR connection to /hubs/mt4/v2 for one trade platform and registers the
         OnTicksBatch handler, so subscriptions made with Register-MT4Realtime -Category
         TicksBatch are delivered as OnTicksBatch events by Receive-MT4Realtime. The per-tick
-        OnTick handler is registered by the connection itself. The trade platform is bound at
-        connect time; call this cmdlet again after a disconnect to obtain a fresh token.
+        OnTick handler is registered by the connection itself. The hub pushes its current
+        connection state right after the handshake as OnMT4ConnectionStatus and repeats it on
+        every later change. The trade platform is bound at connect time; call this cmdlet again
+        after a disconnect to obtain a fresh token.
     .PARAMETER TradePlatform
         Trade platform id (GUID). Defaults to -DefaultTradePlatform of the session.
     .PARAMETER Session

@@ -7,9 +7,9 @@ function Invoke-MT4NewsBodyRequest {
         Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
-        Default for this operation: 15 s (change).
+        Default for this operation: 10 s (read).
         Overrides the session default set with Connect-MyWebApi -RequestTimeout.
-        When the platform does not answer in time the error code is OutcomeUnknown: the change may still be applied, so check the result or repeat with the same -IdempotencyKey instead of repeating blindly.
+        When the platform does not answer in time the error code is Timeout: nothing was changed and the request is safe to repeat.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -23,7 +23,7 @@ function Invoke-MT4NewsBodyRequest {
         [Parameter()][ValidateRange(1, 300)][double] $RequestTimeout
     )
     if (-not $PSCmdlet.ShouldProcess('MT4/NewsBodyRequest')) { return }
-    $reqArgs = @{ Method = 'Post'; Path = "/api/v2/MT4/{tradePlatform}/NewsBodyRequest/$([uri]::EscapeDataString([string]$Key))"; TradePlatform = $TradePlatform; Body = $Body; DefaultRequestTimeout = 15 }
+    $reqArgs = @{ Method = 'Post'; Path = "/api/v2/MT4/{tradePlatform}/NewsBodyRequest/$([uri]::EscapeDataString([string]$Key))"; TradePlatform = $TradePlatform; Body = $Body; DefaultRequestTimeout = 10 }
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }

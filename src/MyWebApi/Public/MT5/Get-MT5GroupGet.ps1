@@ -1,7 +1,7 @@
 function Get-MT5GroupGet {
     <#
     .SYNOPSIS
-        Get a group by name
+        Get a group from the pump cache
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 10 s (read).

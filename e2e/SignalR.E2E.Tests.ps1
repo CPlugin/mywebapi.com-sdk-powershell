@@ -31,13 +31,13 @@ Describe 'SignalR e2e (staging)' -Skip:(-not $script:E2EEnabled) {
 
     # -------------------------------------------------------------------------
     # * Connection lifecycle — Connect-MT4Realtime succeeds and the server
-    #   pushes OnConnectionStatus immediately after the handshake.
+    #   pushes OnMT4ConnectionStatus immediately after the handshake.
     # -------------------------------------------------------------------------
-    It 'Connect-MT4Realtime receives OnConnectionStatus within 5s' {
+    It 'Connect-MT4Realtime receives OnMT4ConnectionStatus within 5s' {
         $rt = Connect-MT4Realtime -TradePlatform $script:Tp
         try {
             $msg = Receive-MT4Realtime -Connection $rt -TimeoutSeconds 5 |
-                Where-Object { $_.Method -eq 'OnConnectionStatus' } |
+                Where-Object { $_.Method -eq 'OnMT4ConnectionStatus' } |
                 Select-Object -First 1
             $msg | Should -Not -BeNullOrEmpty
         } finally {

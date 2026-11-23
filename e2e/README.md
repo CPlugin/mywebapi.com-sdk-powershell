@@ -65,7 +65,7 @@ Invoke-Pester ./e2e -Output Detailed
 
 | Test | What it proves |
 |---|---|
-| `Connect-MT4Realtime` receives `OnConnectionStatus` within 5s | WebSocket handshake succeeds; server pushes the connection-status event immediately |
+| `Connect-MT4Realtime` receives `OnMT4ConnectionStatus` within 5s | WebSocket handshake succeeds; server pushes the connection-status event immediately |
 | `Register-MT4Realtime` (Ticks) receives a tick with symbol/bid/ask | Subscribe + streamed payload delivers a tick shaped `{ symbol, bid, ask }` |
 
 ## Notes

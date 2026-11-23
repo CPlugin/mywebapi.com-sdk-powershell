@@ -6,8 +6,10 @@ function Connect-MT5Realtime {
         Opens a SignalR connection to /hubs/mt5/v2 for one trade platform and registers the
         OnTick and OnTicksBatch handlers, so subscriptions made with Register-MT5Realtime
         -Category Ticks are delivered as OnTick events and -Category TicksBatch as OnTicksBatch
-        events by Receive-MT5Realtime. The trade platform is bound at connect time; call this
-        cmdlet again after a disconnect to obtain a fresh token.
+        events by Receive-MT5Realtime. The hub pushes its current connection state right after
+        the handshake as OnMT5ConnectionStatus and repeats it on every later change. The trade
+        platform is bound at connect time; call this cmdlet again after a disconnect to obtain
+        a fresh token.
     .PARAMETER TradePlatform
         Trade platform id (GUID). Defaults to -DefaultTradePlatform of the session.
     .PARAMETER Session

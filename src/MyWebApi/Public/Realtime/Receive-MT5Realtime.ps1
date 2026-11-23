@@ -8,7 +8,8 @@ function Receive-MT5Realtime {
         Register-MT5Realtime -Category Ticks arrive as Method OnTick with a payload of symbol,
         bid, ask, last, lastTime, volumeExt and flags; batched subscriptions (-Category
         TicksBatch) arrive as Method OnTicksBatch with a payload of symbol and ticks, each tick
-        carrying the same fields. Margin-call updates keep their own method name.
+        carrying the same fields. The connection state arrives as Method OnMT5ConnectionStatus;
+        margin-call updates keep their own method name.
     .PARAMETER Connection
         Connection object returned by Connect-MT5Realtime.
     .PARAMETER TimeoutSeconds

@@ -18,12 +18,12 @@ The WebAPI works with MetaTrader 4 and MetaTrader 5 servers, so an administrator
 
 Typical back-office tasks, each with the cmdlet that performs it. `$session` comes from `Connect-MyWebApi` and `$tp` is the trade platform id (see [Quickstart](#quickstart)); `$c = @{ Connection = $session; TradePlatform = $tp }` is splatted to keep the lines short.
 
-**List open positions of a group** (MT4 `AdmTradesRequest`, MT5 `PositionByGroup`):
+**List open positions of a group** (MT4 `AdmTradesRequest`, MT5 `PositionRequestByGroup`):
 
 ```powershell
 $c = @{ Connection = $session; TradePlatform = $tp }
 Get-MT4AdmTradesRequest @c -Group real-usd -OpenOnly
-Get-MT5PositionByGroup  @c -Mask 'real\*' -All |
+Get-MT5PositionRequestByGroup @c -Mask 'real\*' -All |
     Format-Table login, symbol, volume, profit
 ```
 
@@ -60,12 +60,12 @@ Update-MT4UserRecord @c -Login 1001  -Body @{ group = 'real-vip'; leverage = 200
 Update-MT5UserRecord @c -Login 50001 -Body @{ leverage = 200 }
 ```
 
-**Read trade history for reports and statements** (`TradesUserHistory`, MT5 `DealByGroup`):
+**Read trade history for reports and statements** (`TradesUserHistory`, MT5 `DealRequestByGroup`):
 
 ```powershell
 Get-MT4TradesUserHistory @c -Login 1001 -FromTime '2026-09-01T00:00:00Z' -ToTime '2026-10-01T00:00:00Z' |
     Export-Csv statement-1001.csv
-Get-MT5DealByGroup @c -Mask 'real\*' -All | Export-Csv deals.csv
+Get-MT5DealRequestByGroup @c -Mask 'real\*' -All | Export-Csv deals.csv
 ```
 
 **Watch margin levels** (cached snapshot of every account; the live stream is `Register-MT4Realtime -Category MarginCall`):

@@ -1,7 +1,7 @@
-function Get-MT4SymbolsGroupsGet {
+function Get-MT5OrderGetByTickets {
     <#
     .SYNOPSIS
-        List symbol groups (cached)
+        List orders by tickets
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 10 s (read).
@@ -12,12 +12,15 @@ function Get-MT4SymbolsGroupsGet {
     param(
         [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
+        [Parameter()][long[]] $Tickets,
         [Parameter()][Nullable[guid]] $CacheId,
         [Parameter()][int] $CacheTimeout,
         [Parameter()][string] $IdempotencyKey,
         [Parameter()][ValidateRange(1, 300)][double] $RequestTimeout
     )
-    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT4/{tradePlatform}/SymbolsGroupsGet"; TradePlatform = $TradePlatform; DefaultRequestTimeout = 10 }
+    $q = @{}
+    if ($PSBoundParameters.ContainsKey('Tickets')) { $q['tickets'] = $Tickets }
+    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT5/{tradePlatform}/OrderGetByTickets"; TradePlatform = $TradePlatform; Query = $q; DefaultRequestTimeout = 10 }
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }

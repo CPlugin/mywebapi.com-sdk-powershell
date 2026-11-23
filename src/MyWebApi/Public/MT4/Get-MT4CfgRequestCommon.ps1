@@ -1,7 +1,7 @@
 function Get-MT4CfgRequestCommon {
     <#
     .SYNOPSIS
-        Get common config (live)
+        Get common server configuration
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
         Default for this operation: 10 s (read).

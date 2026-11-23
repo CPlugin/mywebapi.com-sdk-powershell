@@ -1,31 +1,28 @@
-function Get-MT5OrderByGroup {
+function Invoke-MT5DealerSend {
     <#
     .SYNOPSIS
-        List orders by group
+        Send a trade request on behalf of the dealer
+    .PARAMETER Body
+        Dealer request to send.
+        Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
-        Default for this operation: 10 s (read).
+        Default for this operation: 5 s (trade operation).
         Overrides the session default set with Connect-MyWebApi -RequestTimeout.
-        When the platform does not answer in time the error code is Timeout: nothing was changed and the request is safe to repeat.
+        When the platform does not answer in time the error code is OutcomeUnknown: the change may still be applied, so check the result or repeat with the same -IdempotencyKey instead of repeating blindly.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
-        [Parameter(Mandatory)][string] $Mask,
-        [Parameter()][int] $Limit,
-        [Parameter()][string] $Cursor,
-        [Parameter()][switch] $All,
+        [Parameter()][object] $Body,
         [Parameter()][Nullable[guid]] $CacheId,
         [Parameter()][int] $CacheTimeout,
         [Parameter()][string] $IdempotencyKey,
         [Parameter()][ValidateRange(1, 300)][double] $RequestTimeout
     )
-    $q = @{}
-    if ($PSBoundParameters.ContainsKey('Limit')) { $q['limit'] = $Limit }
-    if ($PSBoundParameters.ContainsKey('Cursor')) { $q['cursor'] = $Cursor }
-    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT5/{tradePlatform}/OrderByGroup/$([uri]::EscapeDataString([string]$Mask))"; TradePlatform = $TradePlatform; Query = $q; DefaultRequestTimeout = 10 }
-    if ($All) { $reqArgs.All = $true }
+    if (-not $PSCmdlet.ShouldProcess('MT5/DealerSend')) { return }
+    $reqArgs = @{ Method = 'Post'; Path = "/api/v2/MT5/{tradePlatform}/DealerSend"; TradePlatform = $TradePlatform; Body = $Body; DefaultRequestTimeout = 5 }
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
