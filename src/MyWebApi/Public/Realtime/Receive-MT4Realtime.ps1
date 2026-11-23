@@ -3,7 +3,7 @@ function Receive-MT4Realtime {
     .DESCRIPTION
         Returns payloads made with Register-MT4Realtime as objects with Method and Payload
         properties; batched ticks arrive as Method OnTicksBatch with a payload of symbol and
-        ticks. #>
+        ticks. The connection state arrives as Method OnMT4ConnectionStatus. #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][pscustomobject] $Connection,

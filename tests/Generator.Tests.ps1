@@ -2,12 +2,26 @@ Describe 'Generated cmdlets' {
     BeforeAll {
         $pub = "$PSScriptRoot/../src/MyWebApi/Public"
     }
-    It 'emits 174 cmdlet files' {
-        (Get-ChildItem "$pub/MT4","$pub/MT5" -Filter *.ps1 -Recurse).Count | Should -Be 174
+    It 'emits 224 cmdlet files' {
+        (Get-ChildItem "$pub/MT4","$pub/MT5" -Filter *.ps1 -Recurse).Count | Should -Be 224
     }
     It 'emits the MT5 history cmdlets' {
         Test-Path "$pub/MT5/Get-MT5ChartRequest.ps1" | Should -BeTrue
         Test-Path "$pub/MT5/Get-MT5TicksHistory.ps1" | Should -BeTrue
+    }
+    It 'names the MT5 common, group and per-group reads as in v1' {
+        Test-Path "$pub/MT5/Get-MT5TimeServer.ps1" | Should -BeTrue
+        Test-Path "$pub/MT5/Get-MT5GroupRequest.ps1" | Should -BeTrue
+        Test-Path "$pub/MT5/Get-MT5GroupGet.ps1" | Should -BeTrue
+        Test-Path "$pub/MT5/Get-MT5OrderGetByGroup.ps1" | Should -BeTrue
+        Test-Path "$pub/MT5/Get-MT5DealRequestByGroup.ps1" | Should -BeTrue
+        Test-Path "$pub/MT5/Get-MT5PositionRequestByGroup.ps1" | Should -BeTrue
+    }
+    It 'emits the restored and new MT4 cmdlets' {
+        Test-Path "$pub/MT4/Get-MT4ManagerCommonEx.ps1" | Should -BeTrue
+        Test-Path "$pub/MT4/Get-MT4CfgRequestCommon.ps1" | Should -BeTrue
+        Test-Path "$pub/MT4/Invoke-MT4CfgUpdateGroup.ps1" | Should -BeTrue
+        Test-Path "$pub/MT4/Invoke-MT4UserRecordUpdate.ps1" | Should -BeTrue
     }
     It 'names the cached user lookup Get-MT4UserRecordGet' {
         Test-Path "$pub/MT4/Get-MT4UserRecordGet.ps1" | Should -BeTrue

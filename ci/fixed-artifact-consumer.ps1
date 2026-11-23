@@ -1,4 +1,4 @@
-# Bounded consumer smoke for the fixed MyWebApi 0.3.4 artifact or nupkg.
+# Bounded consumer smoke for the fixed MyWebApi 0.4.0 artifact or nupkg.
 [CmdletBinding()]
 param(
     [Parameter()][string] $ArtifactDir,
@@ -43,11 +43,11 @@ try {
     $manifestPath = Join-Path $ArtifactDir 'MyWebApi.psd1'
     if (-not (Test-Path $manifestPath)) { throw "MyWebApi.psd1 missing from artifact: $ArtifactDir" }
     $manifest = Test-ModuleManifest -Path $manifestPath
-    if ($manifest.Version -ne [version]'0.3.4') { throw "Expected module 0.3.4, got $($manifest.Version)." }
+    if ($manifest.Version -ne [version]'0.4.0') { throw "Expected module 0.4.0, got $($manifest.Version)." }
     Import-Module $manifestPath -Force
     $moduleImported = $true
     $exports = @(Get-Command -Module MyWebApi)
-    if ($exports.Count -lt 187) { throw "Expected full export surface, got $($exports.Count)." }
+    if ($exports.Count -lt 237) { throw "Expected full export surface, got $($exports.Count)." }
     if (-not (Get-Command Register-MT5Realtime).Parameters.ContainsKey('MaxBatchSize')) { throw 'Batched-tick parameters missing from Register-MT5Realtime.' }
     if (-not (Get-Command Unregister-MT4Realtime).Parameters.ContainsKey('Category')) { throw 'Unregister-MT4Realtime missing from the artifact.' }
     if (-not (Get-Command Get-MT4AdmBalanceCheck).Parameters.ContainsKey('Connection')) { throw 'Generated connection parameter missing.' }
@@ -115,7 +115,7 @@ try {
     $rt = Connect-MT4Realtime -Session $a -TradePlatform 'tp-a'
     Register-MT4Realtime -Connection $rt -Category Ticks -Symbol 'EURUSD' -TimeoutSeconds 5
     $events = @(Receive-MT4Realtime -Connection $rt -TimeoutSeconds 5)
-    if (@($events | Where-Object Method -eq 'OnConnectionStatus').Count -eq 0) { throw 'Realtime status event was not received.' }
+    if (@($events | Where-Object Method -eq 'OnMT4ConnectionStatus').Count -eq 0) { throw 'Realtime status event was not received.' }
     if (@($events | Where-Object Method -eq 'OnTick').Count -eq 0) { throw 'Realtime tick event was not received.' }
     Stop-Process -Id $servers[0].Id -Force
     Start-Sleep -Seconds 2

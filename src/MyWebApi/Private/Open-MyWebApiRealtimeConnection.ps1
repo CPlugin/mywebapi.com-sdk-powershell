@@ -30,8 +30,14 @@ function Open-MyWebApiRealtimeConnection {
         $null = [Microsoft.AspNetCore.SignalR.Client.HubConnectionBuilderHttpExtensions]::WithUrl($builder, $url)
         $connectionObject = $builder.Build()
         $sink = [MyWebApi.RealtimeSink]::new($connectionObject)
-        $sink.On('OnConnectionStatus')
-        if ($Hub -eq 'mt4') { $sink.On('OnTick') }
+        # * The status event carries the hub name: the v2 hubs push OnMT4ConnectionStatus and
+        #   OnMT5ConnectionStatus, with no shared OnConnectionStatus event.
+        if ($Hub -eq 'mt4') {
+            $sink.On('OnMT4ConnectionStatus')
+            $sink.On('OnTick')
+        } else {
+            $sink.On('OnMT5ConnectionStatus')
+        }
 
         $startTask = $sink.StartAsync()
         $timeout = Get-MyWebApiContextProperty -Context $ctx -Name 'RealtimeTimeoutSeconds'

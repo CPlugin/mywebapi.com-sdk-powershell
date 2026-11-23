@@ -3,7 +3,7 @@ function Invoke-MT4CfgUpdateCommon {
     .SYNOPSIS
         Update common config
     .PARAMETER Body
-        Replacement fields. Omitted fields keep their server value.
+        Fields to change. Omitted fields keep their server value.
         Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).

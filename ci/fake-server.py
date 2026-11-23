@@ -237,7 +237,7 @@ class Handler(BaseHTTPRequestHandler):
             if "\x1e" not in text:
                 return
             self._send_frame("{}\x1e")
-            self._send_frame(json.dumps({"type": 1, "target": "OnConnectionStatus", "arguments": [{"state": "connected"}]}, separators=(",", ":")) + "\x1e")
+            self._send_frame(json.dumps({"type": 1, "target": "OnMT4ConnectionStatus", "arguments": [{"state": "connected"}]}, separators=(",", ":")) + "\x1e")
             while True:
                 opcode, payload = self._recv_frame(timeout=10)
                 if opcode is None or opcode == 8:

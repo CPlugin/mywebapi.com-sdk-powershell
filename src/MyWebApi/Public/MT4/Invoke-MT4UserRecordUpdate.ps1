@@ -3,7 +3,7 @@ function Invoke-MT4UserRecordUpdate {
     .SYNOPSIS
         Update account
     .PARAMETER Body
-        Replacement fields. Omitted-from-DTO fields are preserved server-side.
+        Account login plus the fields to change; omitted fields keep their server value
         Pass any value that ConvertTo-Json can serialize (a hashtable or [pscustomobject] for an object).
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
@@ -15,7 +15,6 @@ function Invoke-MT4UserRecordUpdate {
     param(
         [Parameter()][object] $Connection,
         [Parameter()][string] $TradePlatform,
-        [Parameter(Mandatory)][string] $Login,
         [Parameter()][object] $Body,
         [Parameter()][Nullable[guid]] $CacheId,
         [Parameter()][int] $CacheTimeout,
@@ -23,7 +22,7 @@ function Invoke-MT4UserRecordUpdate {
         [Parameter()][ValidateRange(1, 300)][double] $RequestTimeout
     )
     if (-not $PSCmdlet.ShouldProcess('MT4/UserRecordUpdate')) { return }
-    $reqArgs = @{ Method = 'Post'; Path = "/api/v2/MT4/{tradePlatform}/UserRecordUpdate/$([uri]::EscapeDataString([string]$Login))"; TradePlatform = $TradePlatform; Body = $Body; DefaultRequestTimeout = 15 }
+    $reqArgs = @{ Method = 'Post'; Path = "/api/v2/MT4/{tradePlatform}/UserRecordUpdate"; TradePlatform = $TradePlatform; Body = $Body; DefaultRequestTimeout = 15 }
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
