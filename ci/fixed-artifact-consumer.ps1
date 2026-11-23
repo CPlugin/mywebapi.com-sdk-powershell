@@ -115,7 +115,7 @@ try {
     $rt = Connect-MT4Realtime -Session $a -TradePlatform 'tp-a'
     Register-MT4Realtime -Connection $rt -Category Ticks -Symbol 'EURUSD' -TimeoutSeconds 5
     $events = @(Receive-MT4Realtime -Connection $rt -TimeoutSeconds 5)
-    if (@($events | Where-Object Method -eq 'OnConnectionStatus').Count -eq 0) { throw 'Realtime status event was not received.' }
+    if (@($events | Where-Object Method -eq 'OnMT4ConnectionStatus').Count -eq 0) { throw 'Realtime status event was not received.' }
     if (@($events | Where-Object Method -eq 'OnTick').Count -eq 0) { throw 'Realtime tick event was not received.' }
     Stop-Process -Id $servers[0].Id -Force
     Start-Sleep -Seconds 2
