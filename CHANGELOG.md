@@ -2,6 +2,61 @@
 
 All notable changes to the `MyWebApi` PowerShell module. The module follows [semver](https://semver.org/); while it is at `0.x`, a minor release may contain breaking changes.
 
+## 0.6.0
+
+Regenerated from the refreshed WebAPI v2 specification of 24.11.2026 (453 paths, 456 generated cmdlets, 469 exported functions — the same surface as 0.5.1, no cmdlet added, removed or renamed).
+
+### Changed
+
+- `MT5ConSubscription` carries `priceCost` — the real cost of the subscription, the amount the client is actually charged — next to `price` and `priceCurrency`. Returned by `Get-MT5SubscriptionCfgGet` and the other configuration reads, and accepted on input.
+- `MT5SubscriptionHistory` carries `time` — the time of the subscription action, in seconds since 1970-01-01. Returned by `Get-MT5SubscriptionHistoryRequest` and the other history reads, and accepted on input.
+- The sandbox server (`https://pre.mywebapi.com`) is listed in the specification before production, and the tag and `TickStream` descriptions now point to the published history page instead of a repository file.
+
+### Notes
+
+- A request body stays a free-form hashtable or `[pscustomobject]`; the new fields need no module change, only the regenerated help text reflects the specification.
+
+## 0.5.1
+
+Regenerated from the refreshed WebAPI v2 specification of 23.11.2026 (453 paths, 456 generated cmdlets, 469 exported functions — the same surface as 0.5.0, no cmdlet added, removed or renamed).
+
+### Changed
+
+- Subscription models in the specification are typed enumerations instead of integer codes: `MT5ConSubscription` (`type`, `controlMode`, `periodMode`, `periodFreeMode`, `flags`) and `MT5ConSubscriptionSymbol` (`level`, `tickHistory`), `MT5Subscription` (`status`, `flags`) and `MT5SubscriptionHistory` (`action`). Each is sent and returned by name — for example `periodMode = 'Monthly'`, `level = 'RealtimeLevel2'`, `status = 'Active'`, `flags = 'FreePeriod'` — and the numeric value is still accepted on input. The flag values (`MT5ConSubscriptionFlags`, `MT5SubscriptionFlags`) are written as the names of the set bits joined by `, `, `None` when none is set.
+- `MT5MarketTickStat` carries the price Greeks: `priceGreeksDelta`, `priceGreeksTheta`, `priceGreeksGamma`, `priceGreeksVega`, `priceGreeksRho`, `priceGreeksOmega` and `priceSensitivity`. The cmdlets pass the response through unchanged, so `Get-MT5TickStat` shows them without a code change.
+- News time is the wall-clock time of the trade server in both directions: `MT5News.time` and `MT5NewsSendRequest.time` are returned and expected without a zone offset, in the server's time zone, and the previous "in UTC" wording is gone.
+- Per-operation default `-RequestTimeout` follows the refreshed specification: reads now default to 30 s (was 10 s, "history or report" category), trade operations to 5 s (was 15 s).
+
+### Notes
+
+- A request body stays a free-form hashtable or `[pscustomobject]`; the new fields and enum names need no module change, only the regenerated help text reflects the specification.
+
+## 0.5.0
+
+Regenerated from the extended WebAPI v2 specification of 23.11.2026 (440 paths on the x64 deployment, plus the 13 MT4 x86 sidecar paths kept in the vendored spec — 453 paths, 456 generated cmdlets, 469 exported functions). Every cmdlet of 0.4.0 keeps its name and parameters; the release is additive.
+
+### Added
+
+- MT5 users and client records: `Get-MT5UserCertGet`, `Invoke-MT5UserCertConfirm`, `Invoke-MT5UserCertUpdate`, `Invoke-MT5UserCertDelete`, `Get-MT5UserExternalGet`, `Get-MT5UserExternalRequest`, `Invoke-MT5UserExternalSync`, `Get-MT5UserGroup`, `Get-MT5UserLogins`, `Get-MT5UserRequestArray`, `Get-MT5UserRequestByLogins`, `Get-MT5UserAccountGetByGroup`, `Get-MT5UserAccountGetByLogins`, `Get-MT5UserAccountRequestArray`, `Get-MT5UserAccountRequestByLogins`, `Invoke-MT5UserBalanceCheck`, `Invoke-MT5UserBalanceCheckBatch`, `Invoke-MT5UserUpdateBatch`, `Invoke-MT5UserUpdateBatchArray`, `Invoke-MT5UserDeleteBatch`; clients: `Get-MT5ClientRequestByGroup`, `Get-MT5ClientRequestHistory`, `Get-MT5ClientUserRequest`, `Invoke-MT5ClientUpdate`, `Invoke-MT5ClientAddBatch`, `Invoke-MT5ClientAddBatchArray`, `Invoke-MT5ClientUpdateBatch`, `Invoke-MT5ClientUpdateBatchArray`, `Invoke-MT5ClientDeleteBatch`, `Invoke-MT5ClientUserAddBatch`, `Invoke-MT5ClientUserDelete`, `Invoke-MT5ClientUserDeleteBatch`.
+- MT5 CRM documents: comments (`Get-MT5CommentRequest`, `...ByClient`, `...ByDocument`, `Invoke-MT5CommentAdd/Update/Delete` and batch variants), documents (`Get-MT5DocumentRequest`, `...ByClient`, `...History`, `Invoke-MT5DocumentAdd/Update/Delete` and batch variants), attachments (`Get-MT5AttachmentRequest`, `Invoke-MT5AttachmentAdd`, `Invoke-MT5AttachmentAddBatch`, `Invoke-MT5AttachmentAddBatchArray`).
+- MT5 subscriptions: configurations (`Get-MT5SubscriptionCfgGet`, `...ByID`, `...Request`, `...RequestByID`), live subscriptions (`Get-MT5SubscriptionRequest`, `...ByGroup`, `...ByID`, `...ByIDs`, `...ByLogins`, `Invoke-MT5SubscriptionJoin`, `...JoinBatch`, `Invoke-MT5SubscriptionUpdate`, `...UpdateBatch`, `...UpdateBatchArray`, `Invoke-MT5SubscriptionCancel`, `...CancelBatch`, `Invoke-MT5SubscriptionDelete`, `...DeleteBatch`) and history (`Get-MT5SubscriptionHistoryRequest`, `...ByGroup`, `...ByID`, `...ByIDs`, `...ByLogins`, `Invoke-MT5SubscriptionHistoryUpdate`, `...UpdateBatch`, `...UpdateBatchArray`, `Invoke-MT5SubscriptionHistoryDelete`, `...DeleteBatch`).
+- MT5 trading and market data: `Invoke-MT5OrderAdd`, `...AddBatch`, `...AddBatchArray`, `Invoke-MT5OrderUpdate`, `...UpdateBatch`, `...UpdateBatchArray`, `Invoke-MT5OrderCancel`, `...CancelBatch`, `Invoke-MT5OrderDelete`, `Get-MT5OrderRequest`, `...ByLogins`, `...ByLoginsSymbol`, `Get-MT5OrderGetOpen`, `Get-MT5OrderRequestOpen`, `Invoke-MT5DealAdd`, `...AddBatch`, `...AddBatchArray`, `Invoke-MT5DealPerform`, `...PerformBatch`, `...PerformBatchArray`, `Invoke-MT5DealDelete`, `Invoke-MT5DealUpdateBatch`, `...UpdateBatchArray`, `Get-MT5DealRequestByLoginsSymbol`, `Get-MT5DealRequestPage`, `Get-MT5HistoryRequestByLogins`, `...ByLoginsSymbol`, `...ByGroupSymbol`, `Get-MT5HistoryRequestPage`, `Invoke-MT5PositionSplit`, `Invoke-MT5PositionUpdate`, `...UpdateBatch`, `...UpdateBatchArray`, `Invoke-MT5PositionDeleteByTicket`, `Invoke-MT5PositionRequestByTickets`, `Invoke-MT5TradeMarginCheck`, `...Ext`, `Invoke-MT5TradeProfit`, `...Ext`, `Invoke-MT5TradeRateBuy`, `...Sell`, `Invoke-MT5TradeAccountSet`, `Get-MT5BookGet`, `Get-MT5TickLast`, `...Raw`, `Get-MT5TickStat`, `Get-MT5TickHistoryRequestRaw`, `Invoke-MT5TickAdd`, `...Batch`, `...Stat`, `Invoke-MT5TickHistoryAdd`, `...Replace`.
+- MT5 dealer workstation: `Invoke-MT5DealerGet`, `DealerStart`, `DealerStop`, `DealerLock`, `DealerAnswer`, `Invoke-MT5SelectedAdd`, `...AddAll`, `...AddBatch`, `...Delete`, `...DeleteAll`, `...DeleteBatch`, `...Next`, `...Shift`, `Get-MT5RequestGet`, `Get-MT5RequestGetAll`.
+- MT5 server operation: `Get-MT5GeoResolve`, `...Batch`, `Get-MT5SettingGet`, `Invoke-MT5SettingSet`, `...Delete`, `Invoke-MT5NetworkRescan`, `Get-MT5NetworkAddress`, `...BytesRead`, `...BytesSent`, `...Server`, `Invoke-MT5LoggerFlush`, `...Out`, `...OutString`, `Get-MT5LoggerServerRequest`, `Invoke-MT5ProxySet`, `Invoke-MT5CustomCommand`, `Invoke-MT5LicenseCheck`, `Invoke-MT5PasswordChange`, `Get-MT5PluginGet`, `Invoke-MT5PluginUpdate`, `Invoke-MT5GroupUpdate`, `...Batch`, `Get-MT5SymbolRequest`, `Get-MT5SymbolExist`, `Invoke-MT5SymbolUpdateBatch`, `Get-MT5TimeServerRequest`, `Get-MT5ExposureGet`, `...GetAll`, `Get-MT5ExposureCurrency`, `Invoke-MT5ExposureCurrency`, `Get-MT5SummaryGet`, `...GetAll`, `Get-MT5SummaryCurrency`, `Invoke-MT5SummaryCurrency`.
+- MT5 communications: `Get-MT5MailRequest`, `...BodyRequest`, `Invoke-MT5MailSend`, `MailDelete`, `MailDeleteId`, `Get-MT5NewsRequest`, `...BodyRequest`, `Invoke-MT5NewsSend`, `Invoke-MT5EmailSend`, `Invoke-MT5MessengerSend`, `...VerifyPhone`, `Invoke-MT5NotificationsSend`, `Invoke-MT5OnlineDisconnect`, `...DisconnectBatch`, `Get-MT5OnlineGet`, `Get-MT5OnlineRequest`.
+- MT4: summary and exposure reports (`Get-MT4SummaryGet`, `...GetAll`, `...GetByCount`, `...GetByType`, `Get-MT4SummaryCurrency`, `Get-MT4ExposureGet`, `Get-MT4ExposureValueGet`), `Invoke-MT4LogsOut`, `Invoke-MT4LogsMode`, `Invoke-MT4TradeCalcProfit`.
+
+### Changed
+
+- A request body that is an array is now serialized as a JSON array even when it holds one element, which the batch-array endpoints (`DealAddBatchArray`, `OrderAddBatchArray`, `AttachmentAddBatchArray`, …) require; previously the pipeline unrolled it into a single object.
+- `scripts/fetch-spec.sh` merges `spec/mt4-sidecar.json` after the download, so refreshing from an x64 deployment no longer drops the 13 MT4 x86 sidecar cmdlets (the previous release kept them by hand-editing the spec).
+- The release probe (`ci/fixed-artifact-consumer.ps1`) expects module 0.5.0 and at least 469 exports.
+
+### Notes
+
+- The new cmdlets need a server that serves the extended v2 contract (443 operations on the x64 deployment); an older server answers the added routes with 404.
+- Authorization follows each operation's requirement; destructive operations keep `ConfirmImpact = 'High'`.
+
 ## 0.4.0
 
 Regenerated from the WebAPI v2 specification of 23.11.2026 (223 paths; 224 generated cmdlets, 237 exported functions). The MT5 surface reaches the full administrative set, MT5 names match v1 again, and the hub connection-status event now carries the platform name.

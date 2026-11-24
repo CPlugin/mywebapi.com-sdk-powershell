@@ -4,7 +4,7 @@ function Get-MT5OrderGetByGroup {
         List orders by group
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
-        Default for this operation: 10 s (read).
+        Default for this operation: 30 s (history or report).
         Overrides the session default set with Connect-MyWebApi -RequestTimeout.
         When the platform does not answer in time the error code is Timeout: nothing was changed and the request is safe to repeat.
     #>
@@ -24,7 +24,7 @@ function Get-MT5OrderGetByGroup {
     $q = @{}
     if ($PSBoundParameters.ContainsKey('Limit')) { $q['limit'] = $Limit }
     if ($PSBoundParameters.ContainsKey('Cursor')) { $q['cursor'] = $Cursor }
-    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT5/{tradePlatform}/OrderGetByGroup/$([uri]::EscapeDataString([string]$Mask))"; TradePlatform = $TradePlatform; Query = $q; DefaultRequestTimeout = 10 }
+    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT5/{tradePlatform}/OrderGetByGroup/$([uri]::EscapeDataString([string]$Mask))"; TradePlatform = $TradePlatform; Query = $q; DefaultRequestTimeout = 30 }
     if ($All) { $reqArgs.All = $true }
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
