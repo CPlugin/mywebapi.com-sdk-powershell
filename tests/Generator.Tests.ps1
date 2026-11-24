@@ -2,8 +2,8 @@ Describe 'Generated cmdlets' {
     BeforeAll {
         $pub = "$PSScriptRoot/../src/MyWebApi/Public"
     }
-    It 'emits 224 cmdlet files' {
-        (Get-ChildItem "$pub/MT4","$pub/MT5" -Filter *.ps1 -Recurse).Count | Should -Be 224
+    It 'emits 456 cmdlet files' {
+        (Get-ChildItem "$pub/MT4","$pub/MT5" -Filter *.ps1 -Recurse).Count | Should -Be 456
     }
     It 'emits the MT5 history cmdlets' {
         Test-Path "$pub/MT5/Get-MT5ChartRequest.ps1" | Should -BeTrue

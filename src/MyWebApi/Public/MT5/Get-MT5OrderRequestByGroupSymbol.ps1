@@ -4,7 +4,7 @@ function Get-MT5OrderRequestByGroupSymbol {
         List orders by group and symbol
     .PARAMETER RequestTimeout
         How long the server waits for the trading platform, in seconds (1-300).
-        Default for this operation: 10 s (read).
+        Default for this operation: 30 s (history or report).
         Overrides the session default set with Connect-MyWebApi -RequestTimeout.
         When the platform does not answer in time the error code is Timeout: nothing was changed and the request is safe to repeat.
     #>
@@ -19,7 +19,7 @@ function Get-MT5OrderRequestByGroupSymbol {
         [Parameter()][string] $IdempotencyKey,
         [Parameter()][ValidateRange(1, 300)][double] $RequestTimeout
     )
-    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT5/{tradePlatform}/OrderRequestByGroupSymbol/$([uri]::EscapeDataString([string]$Mask))/$([uri]::EscapeDataString([string]$Symbol))"; TradePlatform = $TradePlatform; DefaultRequestTimeout = 10 }
+    $reqArgs = @{ Method = 'Get'; Path = "/api/v2/MT5/{tradePlatform}/OrderRequestByGroupSymbol/$([uri]::EscapeDataString([string]$Mask))/$([uri]::EscapeDataString([string]$Symbol))"; TradePlatform = $TradePlatform; DefaultRequestTimeout = 30 }
     if ($PSBoundParameters.ContainsKey('CacheId')) { $reqArgs.CacheId = $CacheId }
     if ($PSBoundParameters.ContainsKey('CacheTimeout')) { $reqArgs.CacheTimeout = $CacheTimeout }
     if ($PSBoundParameters.ContainsKey('IdempotencyKey')) { $reqArgs.IdempotencyKey = $IdempotencyKey }
