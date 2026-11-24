@@ -2,6 +2,12 @@
 
 All notable changes to the `MyWebApi` PowerShell module. The module follows [semver](https://semver.org/); while it is at `0.x`, a minor release may contain breaking changes.
 
+## [0.6.1]
+
+### Fixed
+
+- Release re-cut: `MyWebApi.Sdk` 0.6.0 did not reach nuget.org while `MyWebApi.Sdk.Models` 0.6.0 did, so the four SDKs move to 0.6.1 together. The API surface is identical to 0.6.0.
+
 ## 0.6.0
 
 Regenerated from the refreshed WebAPI v2 specification of 24.11.2026 (453 paths, 456 generated cmdlets, 469 exported functions — the same surface as 0.5.1, no cmdlet added, removed or renamed).
