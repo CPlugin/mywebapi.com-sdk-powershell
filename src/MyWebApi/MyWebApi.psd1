@@ -1,6 +1,6 @@
 @{
     RootModule        = 'MyWebApi.psm1'
-    ModuleVersion     = '0.6.0'
+    ModuleVersion        = '0.6.1'
     GUID              = 'b7e2c1a4-9f3d-4c8e-8a2b-3d5f6e7a8b9c'
     Author            = 'CPlugin'
     CompanyName       = 'CPlugin'
